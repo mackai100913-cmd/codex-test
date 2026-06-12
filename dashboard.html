@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>健康寿命プロジェクト ダッシュボード</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a2129; --panel2:#222c36; --line:#2e3a46;
+    --txt:#e6edf3; --mut:#9fb0c0; --acc:#4ade80; --accB:#38bdf8; --accA:#f472b6;
+    --warn:#fbbf24; --chip:#2a3540;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+    background:var(--bg);color:var(--txt);line-height:1.6;-webkit-font-smoothing:antialiased}
+  header{padding:20px 16px 12px;background:linear-gradient(135deg,#13351f,#0f1419);border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:20px}
+  .sub{color:var(--mut);font-size:13px;margin-top:4px}
+  .northstar{margin-top:10px;padding:10px 12px;background:#13351f;border:1px solid #1f5132;border-radius:10px;font-size:13px}
+  .northstar b{color:var(--acc)}
+  nav{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);z-index:10}
+  nav button{flex:0 0 auto;background:var(--panel);color:var(--mut);border:1px solid var(--line);
+    padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer;white-space:nowrap}
+  nav button.active{background:var(--acc);color:#06210f;border-color:var(--acc);font-weight:700}
+  main{padding:16px;max-width:1100px;margin:0 auto}
+  .tab{display:none} .tab.active{display:block;animation:f .25s ease}
+  @keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h2{font-size:16px;margin:18px 0 10px;padding-left:10px;border-left:4px solid var(--acc)}
+  .grid{display:grid;gap:12px}
+  @media(min-width:680px){.grid.cols2{grid-template-columns:1fr 1fr}.grid.cols3{grid-template-columns:1fr 1fr 1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .card h3{margin:0 0 6px;font-size:14px}
+  .muted{color:var(--mut);font-size:13px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}
+  th,td{border:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--mut);font-weight:600}
+  .tagA{color:var(--accA)} .tagB{color:var(--accB)} .tagC{color:var(--acc)}
+  .chip{display:inline-block;background:var(--chip);border:1px solid var(--line);border-radius:14px;
+    padding:3px 10px;font-size:12px;margin:2px 3px 2px 0;cursor:pointer;color:var(--mut)}
+  .chip.on{background:var(--accB);color:#04212e;border-color:var(--accB);font-weight:700}
+  .chipA.on{background:var(--accA);color:#3a0a22}
+  .chipC.on{background:var(--acc);color:#06210f}
+  #ideaSearch{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel);color:var(--txt);font-size:14px;margin-bottom:10px}
+  .idea{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:8px}
+  .idea .num{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+    background:var(--panel2);border-radius:50%;font-size:12px;font-weight:700;margin-right:8px;flex:0 0 auto}
+  .idea .top{display:flex;align-items:center}
+  .idea .body{font-size:14px;margin-top:2px}
+  .idea .meta{font-size:11px;color:var(--mut);margin-top:5px}
+  .badge{font-size:11px;padding:2px 7px;border-radius:8px;margin-left:auto;flex:0 0 auto}
+  .badge.A{background:#3a0a22;color:var(--accA)} .badge.B{background:#04212e;color:var(--accB)}
+  .badge.共通{background:#06210f;color:var(--acc)}
+  .stat{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0}
+  .stat .b{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;flex:1;min-width:120px}
+  .stat .b b{display:block;font-size:18px;color:var(--acc)}
+  .count{color:var(--mut);font-size:12px;margin:4px 0 10px}
+  a{color:var(--accB)}
+  .foot{color:var(--mut);font-size:11px;text-align:center;padding:24px 12px}
+  details{margin:6px 0} summary{cursor:pointer;color:var(--accB);font-size:13px}
+  .pill{font-size:11px;color:var(--warn);border:1px solid var(--warn);border-radius:8px;padding:1px 6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧬 健康寿命プロジェクト ダッシュボード</h1>
+  <div class="sub">機能性D2Cサプリ 2軸 / アイデア資料の見える化 · 更新 2026-06-11</div>
+  <div class="northstar">🌟 北極星：<b>利用者の健康寿命を伸ばす</b>。美容や体型は目的でなく「健康寿命が伸びた結果＝見えるKPI」。フレーム＝<b>D1 見える化</b>＋<b>D3 積立</b>。</div>
+</header>
+
+<nav id="nav"></nav>
+<main>
+
+<!-- 概要 -->
+<section class="tab active" id="t-overview">
+  <h2>2軸の商品コンセプト</h2>
+  <div class="grid cols2">
+    <div class="card" style="border-color:#7a2a52">
+      <h3 class="tagA">🅰 女性 40-55 ／ 核＝エクオール・大豆イソフラボン</h3>
+      <p class="muted">「閉経は美容問題じゃない。<b>その後30年の健康寿命、最大の分岐点</b>」。更年期→骨・血管を守り寝たきり/脳心血管を防ぐ。</p>
+      <div class="muted">見える化：エクオール産生能検査(ソイチェック)同梱／時間軸：守る・立て直す</div>
+      <div class="stat"><div class="b"><b>280億</b>更年期ケア市場(二桁成長)</div><div class="b"><b>200億</b>エクオール市場</div></div>
+    </div>
+    <div class="card" style="border-color:#1f5d7a">
+      <h3 class="tagB">🅱 男性 30-45 ／ 核＝ブラックジンジャー由来PMF</h3>
+      <p class="muted">「サルコペニアは高齢者の話じゃない。<b>30代の“前借り予防”で動ける一生を貯める</b>」。脚の筋肉×体脂肪を1成分で。</p>
+      <div class="muted">見える化：体組成(筋量)・体脂肪率／時間軸：前倒しで貯める</div>
+      <div class="stat"><div class="b"><b>3,669億</b>脂肪(低減)市場 最大</div><div class="b"><b>1成分</b>で筋肉+体脂肪の両クレーム</div></div>
+    </div>
+  </div>
+  <h2>条件・制約</h2>
+  <div class="card"><table>
+    <tr><th>ローンチ</th><td>6〜8ヶ月</td><th>原価率</th><td>30%以下</td></tr>
+    <tr><th>届出</th><td>機能性表示：要(SR実績成分・新規臨床なし)</td><th>獲得</th><td>月1,000件 / CPA¥10,000</td></tr>
+    <tr><th>チャネル</th><td>D2C(定期前提)</td><th>価格帯</th><td>Lite ¥3,480以下 / Premium ¥9,800(再設計予定)</td></tr>
+  </table></div>
+</section>
+
+<!-- 市場データ -->
+<section class="tab" id="t-market">
+  <h2>① 機能性表示食品 市場全体</h2>
+  <div class="stat">
+    <div class="b"><b>7,251億</b>市場規模 2024年度(+6.4%)</div>
+    <div class="b"><b>11,034件</b>届出累計</div>
+    <div class="b"><b>紅麹問題</b>→品質/信頼性が競争軸</div>
+  </div>
+  <p class="muted">D2Cの勝ち筋＝「ニッチ悩みの唯一解 × 定期でLTV回収 × SNSで物語」。先行事例：カルビーBody Granola＝腸内検査つきサブスク(＝D1の実証)。</p>
+  <h2>② カテゴリー別ブレイクダウン</h2>
+  <div class="card"><table>
+    <tr><th>カテゴリー</th><th>市場/成長</th><th>届出成分</th><th>見える化</th><th>競争</th></tr>
+    <tr><td>脂肪(低減)</td><td><b>3,669億(+8.3%)最大</b></td><td>◎葛の花/黒生姜</td><td>体組成</td><td>🔴大手</td></tr>
+    <tr><td>腸内環境</td><td>1,000億超</td><td>◎ビフィズス菌</td><td>腸内検査</td><td>🔴激化</td></tr>
+    <tr><td>血圧/血管</td><td>199億(<b>+21.3%</b>)</td><td>◎GABA(900件超)</td><td>血圧計</td><td>🟡</td></tr>
+    <tr><td>認知機能</td><td>届出300件超</td><td>◎GABA/DHA</td><td>認知アプリ</td><td>🟡</td></tr>
+    <tr style="background:#13351f"><td>更年期ケア</td><td><b>280億(二桁成長)</b></td><td>◎エクオール</td><td><b>産生能検査</b></td><td>🟢余地</td></tr>
+    <tr><td>骨/ロコモ</td><td>未成熟</td><td>△大豆イソフラ</td><td>骨密度</td><td>🟢青</td></tr>
+    <tr><td>筋肉/サルコペニア</td><td>黎明期</td><td>△HMB/黒生姜のみ</td><td>筋量</td><td>🟢青</td></tr>
+  </table></div>
+  <p class="muted">💡 発見：純粋な“骨/サルコペニア単独”は市場黎明期＝立上げ重い。→ 成長×届出×見える化が揃う「更年期/エクオール(A)」「脂肪×筋肉の黒生姜(B)」を核に、健康寿命で束ねる。</p>
+  <details><summary>主な出典</summary>
+    <p class="muted">矢野経済研究所 / 富士経済 / UOCC(届出ランキング) / him-news(筋肉成分) / 健康産業新聞 ほか（詳細は IDEA_BOOK.md Track-D）</p>
+  </details>
+</section>
+
+<!-- アイデア50 -->
+<section class="tab" id="t-ideas">
+  <h2>商品設計アイデア 50</h2>
+  <input id="ideaSearch" placeholder="🔍 キーワード検索（例：検査 / 積立 / 法人）">
+  <div class="muted" style="margin-bottom:4px">分類で絞り込み：</div>
+  <div id="catFilter"></div>
+  <div class="muted" style="margin:6px 0 4px">対象で絞り込み：</div>
+  <div id="tgtFilter">
+    <span class="chip chipA" data-tgt="A">🅰 女性</span>
+    <span class="chip" data-tgt="B">🅱 男性</span>
+    <span class="chip chipC" data-tgt="共通">共通</span>
+  </div>
+  <div class="count" id="ideaCount"></div>
+  <div id="ideaList"></div>
+</section>
+
+<!-- パターンカード -->
+<section class="tab" id="t-cards">
+  <h2>抽象化パターンカード 18（借用元 → 原理）</h2>
+  <p class="muted">他市場・他社・他サービスを「原理」に還元し、自社商品へ新結合する素材。</p>
+  <div class="grid cols2" id="patternList"></div>
+</section>
+
+<!-- 進捗 -->
+<section class="tab" id="t-status">
+  <h2>進捗ステータスボード</h2>
+  <div class="card"><table>
+    <tr><th>ライン</th><th>役割</th><th>A</th><th>B</th><th>現在</th></tr>
+    <tr><td>A</td><td>リサーチ</td><td>🟢</td><td>🟢</td><td>市場調査・候補洗い出し完了</td></tr>
+    <tr><td>B</td><td>商品設計</td><td>🟢</td><td>🟢</td><td>アイデア50→絞り込み待ち</td></tr>
+    <tr><td>C</td><td>法規/品質</td><td>⚪️</td><td>⚪️</td><td>M4で本格稼働</td></tr>
+    <tr><td>D</td><td>製造</td><td>⚪️</td><td>⚪️</td><td>M2でOEM選定</td></tr>
+    <tr><td>E</td><td>マーケ</td><td>🟢</td><td>🟢</td><td>コンセプト言語化</td></tr>
+  </table></div>
+  <h2>これまでの意思決定ログ</h2>
+  <div class="card muted">
+    <p>1. 北極星を<b>健康寿命</b>に再定義（“美容”表層の旧案を破棄）</p>
+    <p>2. 全体フレーム＝<b>D1見える化＋D3積立</b>で確定</p>
+    <p>3. 市場データで練り直し：A＝エクオール / B＝ブラックジンジャー</p>
+    <p>4. 商品設計アイデア50を異業種抽象化×新結合で発散 ← <span class="pill">今ここ</span></p>
+    <p>次：50案を「実現性×D1+D3整合×原価/法規」で絞り込み → 価格・販売方法へ</p>
+  </div>
+</section>
+
+</main>
+<div class="foot">単一HTML・自己完結 / データ出典は IDEA_BOOK.md・PROJECT.md・IDEAS_50.md</div>
+
+<script>
+const TABS=[["t-overview","概要"],["t-market","市場データ"],["t-ideas","アイデア50"],["t-cards","パターン18"],["t-status","進捗"]];
+const CATS=["見える化・測定","積立・投資","継続・習慣化","パーソナライズ","コミュニティ","製品形態・UX","信頼・エビデンス","課金・販売"];
+const PATTERNS=[
+ ["P1","Oura / WHOOP","見えない状態を1つの数値に集約して可視化"],
+ ["P2","住友生命 Vitality","行動経済学(損失回避)で継続させる"],
+ ["P3","NISA / 積立投資","将来資産を積み上げる投資メタファー"],
+ ["P4","Duolingo","習慣の連続性をゲーム化し“保護”を売る"],
+ ["P5","RIZAP / パーソナルジム","成果保証と伴走で高単価を正当化"],
+ ["P6","カルビー Body Granola","測ってあなた専用にする"],
+ ["P7","Spotify Wrapped","データの物語化で拡散させる"],
+ ["P8","Strava","ソーシャル・リーダーボード"],
+ ["P9","Costco / Amazonプライム","メンバーシップで関係を固定"],
+ ["P10","ふるさと納税","実利と大義の二重動機"],
+ ["P11","デパコス/オールインワン","統合(足し算)で客単価を上げる"],
+ ["P12","Apple / Ōura Ring","ハードで囲ってサプリ(消耗品)で稼ぐ"],
+ ["P13","任天堂 リングフィット","行為そのものをエンタメ化"],
+ ["P14","人間ドック/健康診断","定期検診をブランド体験にする"],
+ ["P15","家族プラン(携帯/保険)","家族・ペア単位でLTVを束ねる"],
+ ["P16","無印良品","盛らない潔さで信頼を得る"],
+ ["P17","ワークマン","数値の透明性で差別化"],
+ ["P18","保険の「健康年齢」","独自指標を発明して資産化"],
+];
+const IDEAS=[
+ [1,0,"A","ソイチェック同梱：初回キットでエクオール産生能を測り、結果で配合を出し分け","P6"],
+ [2,0,"共通","「健康寿命スコア」を独自開発：複数指標を1つの数値に集約し毎月提示","P1"],
+ [3,0,"B","体組成計と自動連携し、筋量・体脂肪でBの効果を可視化","P12"],
+ [4,0,"A","LINE月1問診→血管年齢・骨密度の推定スコア化","P14"],
+ [5,0,"共通","ビフォーアフターを写真でなく「数値カルテ」で毎月発行","P5"],
+ [6,0,"A","飲んだ日を記録→「体内エクオール推定量」を可視化","P1"],
+ [7,0,"共通","年1回「あなたの老化ドック」郵送検査をサブスク特典で無料提供","P14"],
+ [8,0,"共通","摂取ログ×活動量で「今月どれだけ健康寿命を守れたか」レポート","P7"],
+ [9,0,"B","握力計を初回同梱、毎月の握力推移で“貯筋”を見せる","P12"],
+ [10,0,"共通","改善を「老化を◯ヶ月巻き戻した」と翻訳表示","P3"],
+ [11,1,"共通","「健康寿命つみたて」：継続を“年数の積立”として通帳UIで見せる","P3"],
+ [12,1,"共通","継続月数で「複利」的に特典が増える","P3"],
+ [13,1,"共通","解約=「積立の取り崩し」と表現し損失回避を効かせる","P2"],
+ [14,1,"共通","「将来の医療費をいくら節約したか」を試算提示","P10"],
+ [15,1,"共通","「健康寿命の家族口座」で世帯積立","P15"],
+ [16,1,"共通","12ヶ月で「満期」セレモニー＋記念カルテ","P3"],
+ [17,2,"共通","「飲んだ」ストリーク：途切れそうだと通知で軽くプレッシャー","P4"],
+ [18,2,"共通","「飲み忘れ保護」アイテム＝上位プランで連続記録を守れる","P4"],
+ [19,2,"共通","ステータス制(ブルー→ブロンズ…)で継続者ほど価格が下がる","P2"],
+ [20,2,"共通","先に割引を適用し「失わないために続ける」設計","P2"],
+ [21,2,"共通","週次チャレンジ(飲む＋歩く)達成でリワード","P2"],
+ [22,2,"共通","歯磨きの隣に置くパッケージで朝ルーティンに寄生","P16"],
+ [23,2,"共通","開封音・色変化など飲む行為を小さく儀式化","P13"],
+ [24,3,"A","産生できる人/できない人で別処方(できない人はエクオール直接配合)","P6"],
+ [25,3,"共通","問診×AIで「老化タイプ」判定→配合最適化","P6"],
+ [26,3,"共通","季節・体調で配合が変わる動的サブスク","P6"],
+ [27,3,"共通","年齢進行に合わせ処方が“進級”","P3"],
+ [28,3,"B","男性の働き方(デスク/外回り)で配合分岐","P6"],
+ [29,3,"共通","夫婦ペア診断→2人分を最適化同梱","P15"],
+ [30,4,"共通","「健康寿命ランキング」を匿名で同年代と比較","P8"],
+ [31,4,"共通","チーム積立で継続率を競う","P8"],
+ [32,4,"共通","SNS用「老化巻き戻しカード」を自動生成","P7"],
+ [33,4,"共通","卒業生コミュニティ(◯年継続者の会)でステータス可視化","P9"],
+ [34,4,"共通","医師・専門家のライブ相談を会員特典に","P5"],
+ [35,5,"共通","錠剤でなく「朝の1スティック」(水なし粉末/ゼリー)","P6"],
+ [36,5,"A","Aは“飲む＋塗る”内外セット(更年期の乾燥ケアも／主役は健康寿命)","P11"],
+ [37,5,"B","Bはコーヒー/プロテインに溶かす形態で習慣に寄生","P13"],
+ [38,5,"共通","28日カレンダーパック(日付入り)で飲み忘れ防止","P4"],
+ [39,5,"共通","容器をスマート化(開封回数をBluetooth記録)","P12"],
+ [40,5,"共通","旅行用ミニ/職場ストックなど“続く”ためのライン拡張","P15"],
+ [41,6,"共通","全ロット第三者検査・GMP・成分量公開を前面に","P17"],
+ [42,6,"共通","届出根拠論文を読める「エビデンス図書館」公開","P17"],
+ [43,6,"共通","学術提携で独自「健康年齢」指標を開発しブランド資産化","P18"],
+ [44,6,"共通","医師監修＋効果実感アンケートを毎月公開","P5"],
+ [45,7,"共通","「測定キット＋初月分」の体験ボックスを入口(フロント)に","P6"],
+ [46,7,"共通","年会費メンバーシップ＝割引＋年1検査＋相談","P9"],
+ [47,7,"共通","成果コミット型：規定回数測って改善なければ返金","P5"],
+ [48,7,"共通","健康行動でポイント→次回割引","P2"],
+ [49,7,"B","法人福利厚生として企業へ(働き盛り男性Bと好相性)","P2"],
+ [50,7,"共通","「2軸セット」夫婦/カップル定期＝A＋Bでまとめ、LTV最大化","P15"],
+];
+const PMAP=Object.fromEntries(PATTERNS.map(p=>[p[0],p[1]]));
+
+// nav
+const nav=document.getElementById('nav');
+TABS.forEach((t,i)=>{const b=document.createElement('button');b.textContent=t[1];b.dataset.tab=t[0];
+  if(i===0)b.classList.add('active');b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');document.getElementById(t[0]).classList.add('active');window.scrollTo(0,0);
+  };nav.appendChild(b);});
+
+// patterns
+document.getElementById('patternList').innerHTML=PATTERNS.map(p=>
+ `<div class="card"><h3>${p[0]} · ${p[1]}</h3><div class="muted">→ ${p[2]}</div></div>`).join('');
+
+// category filter chips
+const catF=document.getElementById('catFilter');
+let actCats=new Set(), actTgts=new Set();
+CATS.forEach((c,i)=>{const s=document.createElement('span');s.className='chip';s.textContent=`${i+1}.${c}`;
+  s.dataset.cat=i;s.onclick=()=>{s.classList.toggle('on');toggle(actCats,i,s);render();};catF.appendChild(s);});
+document.querySelectorAll('#tgtFilter .chip').forEach(s=>{s.onclick=()=>{s.classList.toggle('on');
+  toggle(actTgts,s.dataset.tgt,s);render();};});
+function toggle(set,v,el){if(el.classList.contains('on'))set.add(''+v);else set.delete(''+v);}
+
+const search=document.getElementById('ideaSearch');
+search.oninput=render;
+function render(){
+  const q=search.value.trim();
+  const list=IDEAS.filter(it=>{
+    if(actCats.size&&!actCats.has(''+it[1]))return false;
+    if(actTgts.size&&!actTgts.has(it[2]))return false;
+    if(q&&!(it[3].includes(q)||PMAP[it[4]].includes(q)))return false;
+    return true;});
+  document.getElementById('ideaCount').textContent=`${list.length} / 50 件`;
+  document.getElementById('ideaList').innerHTML=list.map(it=>
+   `<div class="idea"><div class="top"><span class="num">${it[0]}</span>
+     <span class="badge ${it[2]}">${it[2]==='A'?'🅰女性':it[2]==='B'?'🅱男性':'共通'}</span></div>
+     <div class="body">${it[3]}</div>
+     <div class="meta">📂 ${it[1]+1}.${CATS[it[1]]} ／ 🃏 ${it[4]} ${PMAP[it[4]]}</div></div>`).join('')
+   ||'<div class="muted">該当なし</div>';
+}
+render();
+</script>
+</body>
+</html>
