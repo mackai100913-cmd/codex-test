@@ -1,0 +1,11 @@
+# 画像生成（Gemini 3 Pro Image / Nano Banana Pro）
+google-genai>=0.8.0
+
+# 画像合成・テキスト焼き込み・ダミー画像生成
+Pillow>=10.0.0
+
+# 設定ファイル
+PyYAML>=6.0
+
+# .env 読み込み
+python-dotenv>=1.0.0

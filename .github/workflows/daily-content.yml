@@ -1,0 +1,42 @@
+name: 日次グルメ投稿パッケージ生成
+
+# 毎日 JST 06:00（UTC 21:00）に自動生成。手動実行も可。
+on:
+  schedule:
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "生成する投稿数"
+        required: false
+        default: "2"
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 依存インストール
+        run: pip install -r requirements.txt
+
+      - name: 日本語フォント
+        run: sudo apt-get update && sudo apt-get install -y fonts-ipafont-gothic
+
+      - name: 投稿パッケージ生成
+        env:
+          # リポジトリの Settings → Secrets に GEMINI_API_KEY を登録
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          POSTS_PER_RUN: ${{ github.event.inputs.count || '2' }}
+        run: python run.py --count "${POSTS_PER_RUN}"
+
+      - name: 生成物をアーティファクト化（スマホでDLして投稿）
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiktok-posts-${{ github.run_number }}
+          path: output/
+          retention-days: 14
