@@ -24,15 +24,33 @@ W, H = 1080, 1920
 # --- フォント -------------------------------------------------------------
 
 _GOTHIC = [
+    # Linux (IPA / Noto)
     "/usr/share/fonts/opentype/ipafont-gothic/ipagp.ttf",
     "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf",
     "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+    # macOS
+    "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+    "/System/Library/Fonts/ヒラギノ角ゴシック W7.ttc",
+    "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    # Windows
+    "C:/Windows/Fonts/YuGothB.ttc",
+    "C:/Windows/Fonts/meiryob.ttc",
+    "C:/Windows/Fonts/meiryo.ttc",
+    "C:/Windows/Fonts/msgothic.ttc",
 ]
 _MINCHO = [
+    # Linux (IPA)
     "/usr/share/fonts/opentype/ipafont-mincho/ipamp.ttf",
     "/usr/share/fonts/opentype/ipafont-mincho/ipam.ttf",
     "/usr/share/fonts/truetype/fonts-japanese-mincho.ttf",
+    # macOS
+    "/System/Library/Fonts/ヒラギノ明朝 ProN.ttc",
+    "/System/Library/Fonts/Hiragino Mincho ProN.ttc",
+    # Windows
+    "C:/Windows/Fonts/yumin.ttf",
+    "C:/Windows/Fonts/msmincho.ttc",
+    "C:/Windows/Fonts/MSMINCHO.TTC",
 ]
 
 
@@ -51,7 +69,8 @@ def gothic(size: int) -> ImageFont.FreeTypeFont:
 
 
 def mincho(size: int) -> ImageFont.FreeTypeFont:
-    return _font(_MINCHO, size)
+    # 明朝が見つからない環境ではゴシックで代用（豆腐文字を避ける）
+    return _font(_MINCHO + _GOTHIC, size)
 
 
 # --- 画像取得（Gemini or ダミー） -----------------------------------------
