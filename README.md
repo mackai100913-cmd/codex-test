@@ -29,11 +29,18 @@
 ```bash
 pip install -r requirements.txt
 sudo apt-get install -y fonts-ipafont-gothic fonts-ipafont-mincho  # 日本語フォント
-python run.py            # APIキー無しでもダミー画像でレイアウト確認できます
+python run.py            # 投稿パッケージを生成
 ```
 
-実際の料理写真を生成するには **Gemini APIキー（無料）** を取得して `.env` に設定するだけ。
-→ 手順は [`docs/SETUP.md`](docs/SETUP.md)
+### 画像の2モード
+- **モードB（無料・現在の設定）**: 料理写真は **Geminiアプリ**（Pro契約の範囲・API課金なし）で
+  あなたが作成 → システムが表紙・レシピカードに自動合成。
+  各フォルダの `画像作成ガイド.txt` のプロンプトをアプリに貼って画像を作り、
+  `素材` フォルダに入れて `python run.py --build` を実行するだけ。
+- **モードA（全自動）**: Gemini APIで料理写真も自動生成（要 請求の有効化）。
+  `.env` の `GEMINI_IMAGE_ENABLED=true` で切替。
+
+→ 詳しい手順は [`docs/SETUP.md`](docs/SETUP.md)
 
 ## 出力イメージ
 

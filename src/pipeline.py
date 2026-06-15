@@ -32,9 +32,10 @@ def run(n: int | None = None, target_date: date | None = None) -> list[str]:
     cal = write_calendar(plans, recipes, target_date)
     print(f"\n🗓  カレンダー: {cal}")
 
-    using_gemini = bool(config.gemini_api_key())
-    mode = "Gemini実画像" if using_gemini else "DEMO（ダミー画像）"
-    print(f"\n画像モード: {mode}  / モデル: {config.image_model()}")
-    if not using_gemini:
-        print("※ 実画像にするには .env に GEMINI_API_KEY を設定してください（docs/SETUP.md）")
+    if config.image_api_enabled():
+        print(f"\n画像モード: Gemini自動生成 / モデル: {config.image_model()}")
+    else:
+        print("\n画像モード: 自分で用意した画像を使う（モードB）")
+        print("各フォルダの「画像作成ガイド.txt」を見てGeminiアプリで画像を作り、")
+        print("「素材」フォルダに入れて  python run.py --build  を実行してください。")
     return dirs

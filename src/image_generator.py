@@ -57,6 +57,8 @@ def mincho(size: int) -> ImageFont.FreeTypeFont:
 # --- 画像取得（Gemini or ダミー） -----------------------------------------
 
 def _gemini_image(prompt: str, aspect: str) -> Image.Image | None:
+    if not config.image_api_enabled():
+        return None
     api_key = config.gemini_api_key()
     if not api_key:
         return None
@@ -119,26 +121,59 @@ def _dummy_food(w: int, h: int, label: str) -> Image.Image:
     return img
 
 
-def hero_image(recipe: Recipe) -> Image.Image:
+# --- 画像生成プロンプト（Geminiアプリにそのまま貼れる） -------------------
+
+def hero_prompt(recipe: Recipe) -> str:
     dish = f"{recipe.title_top}{recipe.title_main}"
-    prompt = (
+    return (
         f"プロのフードフォトグラファーが実際に撮影した「{dish}」の写真。"
         "黒い和食器に盛り付け、暗い木のテーブル、背景は黒。立ち上る湯気、"
         "照り・シズル感、暖色のライティング、浅い被写界深度。"
         "作り物やCGに見えない、本物の家庭料理のリアルな質感と自然な盛り付け。"
-        "文字やロゴは入れない。"
+        "文字やロゴは入れない。縦長（9:16）。"
     )
-    img = _gemini_image(prompt, "9:16") or _dummy_food(W, H, recipe.title_main)
+
+
+def step_prompt(recipe: Recipe, step_title: str, detail: str) -> str:
+    return (
+        f"料理「{recipe.title_main}」の調理工程「{step_title}」の写真。{detail} "
+        "フライパンや鍋・まな板など調理中のリアルな様子。暗いキッチンの俯瞰、"
+        "本物の家庭料理に見える自然な写真。文字は入れない。正方形（1:1）。"
+    )
+
+
+# --- 素材（ユーザー提供画像）の読み込み -----------------------------------
+
+_IMG_EXTS = (".jpg", ".jpeg", ".png", ".webp")
+
+
+def _find_asset(assets_dir: Path | None, *basenames: str) -> Image.Image | None:
+    """assets_dir から basename(拡張子なし)に一致する画像を探して読む。"""
+    if not assets_dir:
+        return None
+    for base in basenames:
+        for ext in _IMG_EXTS:
+            p = assets_dir / f"{base}{ext}"
+            if p.exists():
+                try:
+                    return Image.open(p).convert("RGB")
+                except Exception:
+                    continue
+    return None
+
+
+def hero_image(recipe: Recipe, assets_dir: Path | None = None) -> Image.Image:
+    img = (_find_asset(assets_dir, "hero", "hero1", "01_hero")
+           or _gemini_image(hero_prompt(recipe), "9:16")
+           or _dummy_food(W, H, recipe.title_main))
     return _cover_resize(img, W, H)
 
 
-def step_image(recipe: Recipe, step_title: str, detail: str) -> Image.Image:
-    prompt = (
-        f"料理「{recipe.title_main}」の調理工程「{step_title}」の写真。{detail} "
-        "フライパンや鍋・まな板など調理中のリアルな様子。暗いキッチンの俯瞰、"
-        "本物の家庭料理に見える自然な写真。文字は入れない。正方形。"
-    )
-    img = _gemini_image(prompt, "1:1") or _dummy_food(400, 400, step_title)
+def step_image(recipe: Recipe, idx: int, step_title: str, detail: str,
+               assets_dir: Path | None = None) -> Image.Image:
+    img = (_find_asset(assets_dir, f"step_{idx}", f"step{idx}", f"{idx:02d}_step", f"{idx:02d}")
+           or _gemini_image(step_prompt(recipe, step_title, detail), "1:1")
+           or _dummy_food(400, 400, step_title))
     return _cover_resize(img, 400, 400)
 
 
@@ -369,10 +404,12 @@ def render_card(recipe: Recipe, hero: Image.Image, steps: list[Image.Image]) -> 
 
 # --- まとめ ---------------------------------------------------------------
 
-def generate_post_images(plan: PostPlan, recipe: Recipe, out_dir: Path) -> list[Path]:
+def generate_post_images(plan: PostPlan, recipe: Recipe, out_dir: Path,
+                         assets_dir: Path | None = None) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
-    hero = hero_image(recipe)
-    steps = [step_image(recipe, s.title, s.detail) for s in recipe.steps]
+    hero = hero_image(recipe, assets_dir)
+    steps = [step_image(recipe, i, s.title, s.detail, assets_dir)
+             for i, s in enumerate(recipe.steps, start=1)]
 
     cover = render_cover(recipe, hero)
     card = render_card(recipe, hero, steps)

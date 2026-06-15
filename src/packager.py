@@ -3,8 +3,10 @@
 各投稿ごとに output/<post_id>/ を作り、
 - 表紙画像 / レシピカード画像
 - caption.txt（材料・手順・ハッシュタグの全文 ＝ コピペでそのまま投稿）
-- post.json（メタ情報）
+- post.json（メタ情報） / recipe.json（レシピ全文・再合成用）
 - README.txt（アップロード手順）
+- 画像作成ガイド.txt（Geminiアプリ用プロンプト）
+- 素材/（← ユーザーがGeminiアプリで作った画像を置くフォルダ）
 を生成する。
 """
 
@@ -18,19 +20,53 @@ from pathlib import Path
 from . import config
 from .caption import build_caption
 from .content_planner import PostPlan
-from .image_generator import generate_post_images
+from .image_generator import generate_post_images, hero_prompt, step_prompt
 from .recipe_generator import Recipe
 
+ASSET_DIRNAME = "素材"
 
-def build_package(plan: PostPlan, recipe: Recipe, root: Path | None = None) -> Path:
-    root = root or config.OUTPUT_DIR
-    post_dir = root / plan.post_id
-    post_dir.mkdir(parents=True, exist_ok=True)
 
-    images = generate_post_images(plan, recipe, post_dir)
+def _write_recipe_json(post_dir: Path, recipe: Recipe) -> None:
+    (post_dir / "recipe.json").write_text(
+        json.dumps(asdict(recipe), ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
+
+def _write_image_guide(post_dir: Path, recipe: Recipe) -> None:
+    """Geminiアプリに貼り付ける画像生成プロンプト一覧を書き出す。"""
+    lines = [
+        f"=== 画像作成ガイド: {recipe.title_top}{recipe.title_main} ===",
+        "",
+        "Geminiアプリ（gemini.google.com / スマホアプリ）に、下の【プロンプト】を",
+        "1つずつ貼り付けて画像を作り、保存したら指定のファイル名にして",
+        f"このフォルダの「{ASSET_DIRNAME}」に入れてください。",
+        "全部入れたら  python run.py --build  を実行すると完成画像になります。",
+        "",
+        "------------------------------------------------------------",
+        "① メイン写真   → 保存名: hero.jpg",
+        "【プロンプト】",
+        hero_prompt(recipe),
+        "",
+    ]
+    for i, st in enumerate(recipe.steps, start=1):
+        lines += [
+            "------------------------------------------------------------",
+            f"{['②','③','④','⑤','⑥','⑦','⑧','⑨'][i-1] if i <= 9 else f'({i})'}"
+            f" 工程{i:02d}「{st.title}」 → 保存名: step_{i}.jpg",
+            "【プロンプト】",
+            step_prompt(recipe, st.title, st.detail),
+            "",
+        ]
+    lines += [
+        "------------------------------------------------------------",
+        "※ ファイル名は hero / step_1 〜 step_6 （拡張子は .jpg .png どれでもOK）",
+        "※ 画像が無い分はダミー画像のまま合成されます（後から差し替え可）",
+    ]
+    (post_dir / "画像作成ガイド.txt").write_text("\n".join(lines), encoding="utf-8")
+
+
+def _write_caption_meta(post_dir: Path, plan: PostPlan, recipe: Recipe, images: list[Path]) -> None:
     (post_dir / "caption.txt").write_text(build_caption(recipe), encoding="utf-8")
-
     meta = {
         "post_id": plan.post_id,
         "dish": f"{recipe.title_top}{recipe.title_main}",
@@ -44,7 +80,6 @@ def build_package(plan: PostPlan, recipe: Recipe, root: Path | None = None) -> P
     (post_dir / "post.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-
     instructions = (
         f"=== {plan.post_id} アップロード手順 ===\n\n"
         f"投稿推奨時刻(JST): {plan.scheduled_time_jst}\n\n"
@@ -55,6 +90,36 @@ def build_package(plan: PostPlan, recipe: Recipe, root: Path | None = None) -> P
         "5. 推奨時刻に投稿（または予約投稿）\n"
     )
     (post_dir / "README.txt").write_text(instructions, encoding="utf-8")
+
+
+def build_package(plan: PostPlan, recipe: Recipe, root: Path | None = None) -> Path:
+    root = root or config.OUTPUT_DIR
+    post_dir = root / plan.post_id
+    post_dir.mkdir(parents=True, exist_ok=True)
+
+    assets_dir = post_dir / ASSET_DIRNAME
+    assets_dir.mkdir(exist_ok=True)
+
+    _write_recipe_json(post_dir, recipe)
+    _write_image_guide(post_dir, recipe)
+
+    images = generate_post_images(plan, recipe, post_dir, assets_dir=assets_dir)
+    _write_caption_meta(post_dir, plan, recipe, images)
+    return post_dir
+
+
+def rebuild_package(post_dir: Path) -> Path:
+    """既存の recipe.json と 素材/ から、完成画像を作り直す（--build）。"""
+    from .recipe_generator import _recipe_from_dict
+
+    data = json.loads((post_dir / "recipe.json").read_text(encoding="utf-8"))
+    recipe = _recipe_from_dict(data, seed=post_dir.name)
+    recipe.hashtags = data.get("hashtags", recipe.hashtags)
+
+    assets_dir = post_dir / ASSET_DIRNAME
+    plan = PostPlan(post_id=post_dir.name, dish_idea="", scheduled_time_jst="", seed=post_dir.name)
+    images = generate_post_images(plan, recipe, post_dir, assets_dir=assets_dir)
+    _write_caption_meta(post_dir, plan, recipe, images)
     return post_dir
 
 

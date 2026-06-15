@@ -49,6 +49,11 @@ def image_model() -> str:
     return env("GEMINI_IMAGE_MODEL", "gemini-3-pro-image-preview")
 
 
+def image_api_enabled() -> bool:
+    """画像生成APIを使うか。請求有効化後に GEMINI_IMAGE_ENABLED=true で有効に。"""
+    return (env("GEMINI_IMAGE_ENABLED", "false") or "").lower() in ("1", "true", "yes")
+
+
 def text_model() -> str:
     return env("GEMINI_TEXT_MODEL", "gemini-3-pro")
 
