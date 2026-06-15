@@ -1,50 +1,45 @@
 """アップロード用パッケージを書き出す。
 
 各投稿ごとに output/<post_id>/ を作り、
-- 画像スライド（slide_*.jpg）
-- caption.txt（本文＋ハッシュタグ ＝ コピペでそのまま投稿可）
+- 表紙画像 / レシピカード画像
+- caption.txt（材料・手順・ハッシュタグの全文 ＝ コピペでそのまま投稿）
 - post.json（メタ情報）
 - README.txt（アップロード手順）
-を生成する。スマホで開いて1タップ投稿できる状態にするのが目的。
+を生成する。
 """
 
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from datetime import date
 from pathlib import Path
 
 from . import config
+from .caption import build_caption
 from .content_planner import PostPlan
-from .copywriter import Copy
-from .image_generator import generate_images
+from .image_generator import generate_post_images
+from .recipe_generator import Recipe
 
 
-def _caption_text(copy: Copy) -> str:
-    tags = " ".join(copy.hashtags)
-    return f"{copy.caption}\n\n{tags}\n"
-
-
-def build_package(plan: PostPlan, copy: Copy, root: Path | None = None) -> Path:
+def build_package(plan: PostPlan, recipe: Recipe, root: Path | None = None) -> Path:
     root = root or config.OUTPUT_DIR
     post_dir = root / plan.post_id
     post_dir.mkdir(parents=True, exist_ok=True)
 
-    images = generate_images(plan, copy, post_dir)
+    images = generate_post_images(plan, recipe, post_dir)
 
-    (post_dir / "caption.txt").write_text(_caption_text(copy), encoding="utf-8")
+    (post_dir / "caption.txt").write_text(build_caption(recipe), encoding="utf-8")
 
     meta = {
         "post_id": plan.post_id,
-        "angle": plan.angle_label,
-        "dish": plan.dish,
-        "area": plan.area,
-        "price_band": plan.price_band,
+        "dish": f"{recipe.title_top}{recipe.title_main}",
         "scheduled_time_jst": plan.scheduled_time_jst,
-        "title": copy.title,
-        "hashtags": copy.hashtags,
+        "time": recipe.time,
+        "cost": recipe.cost,
+        "difficulty": recipe.difficulty,
+        "hashtags": recipe.hashtags,
         "images": [p.name for p in images],
-        "slide_count": len(images),
     }
     (post_dir / "post.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -54,7 +49,7 @@ def build_package(plan: PostPlan, copy: Copy, root: Path | None = None) -> Path:
         f"=== {plan.post_id} アップロード手順 ===\n\n"
         f"投稿推奨時刻(JST): {plan.scheduled_time_jst}\n\n"
         "1. TikTokアプリ → ＋ → 「写真」を選択\n"
-        f"2. このフォルダの slide_01〜slide_{len(images):02d} を順番に追加\n"
+        "2. slide_01_cover（表紙）→ slide_02_recipe（レシピ）の順で追加\n"
         "3. caption.txt の中身を本文にコピペ（ハッシュタグ込み）\n"
         "4. カバーは slide_01 を選択\n"
         "5. 推奨時刻に投稿（または予約投稿）\n"
@@ -63,18 +58,17 @@ def build_package(plan: PostPlan, copy: Copy, root: Path | None = None) -> Path:
     return post_dir
 
 
-def write_calendar(plans: list[PostPlan], copies: list[Copy], target_date: date,
+def write_calendar(plans: list[PostPlan], recipes: list[Recipe], target_date: date,
                    root: Path | None = None) -> Path:
-    """その日の投稿一覧（カレンダー）を Markdown で書き出す。"""
     root = root or config.OUTPUT_DIR
     root.mkdir(parents=True, exist_ok=True)
     lines = [f"# 投稿カレンダー {target_date.isoformat()}", ""]
-    for plan, copy in zip(plans, copies):
+    for plan, recipe in zip(plans, recipes):
         lines += [
-            f"## {plan.scheduled_time_jst}  {copy.title}",
+            f"## {plan.scheduled_time_jst}  {recipe.title_top}{recipe.title_main}",
             f"- フォルダ: `output/{plan.post_id}/`",
-            f"- 切り口: {plan.angle_label} / 料理: {plan.dish} / エリア: {plan.area}",
-            f"- タグ: {' '.join(copy.hashtags)}",
+            f"- 調理時間: {recipe.time} / 費用: {recipe.cost} / 難易度: {recipe.difficulty}",
+            f"- タグ: {' '.join(recipe.hashtags)}",
             "",
         ]
     path = root / f"calendar_{target_date.isoformat()}.md"

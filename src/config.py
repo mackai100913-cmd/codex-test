@@ -58,3 +58,11 @@ def posts_per_run() -> int:
     if raw and raw.isdigit():
         return int(raw)
     return int(persona()["schedule"].get("posts_per_day", 2))
+
+
+def design() -> dict[str, Any]:
+    return persona()["design"]
+
+
+def step_count() -> int:
+    return int(persona()["format"].get("step_count", 6))
