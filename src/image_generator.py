@@ -167,18 +167,36 @@ _IMG_EXTS = (".jpg", ".jpeg", ".png", ".webp")
 
 
 def _find_asset(assets_dir: Path | None, *basenames: str) -> Image.Image | None:
-    """assets_dir から basename(拡張子なし)に一致する画像を探して読む。"""
-    if not assets_dir:
+    """assets_dir から basename(拡張子なし)に一致する画像を探して読む。
+
+    二重拡張子(hero.jpg.png 等)や大文字拡張子にも対応するため、
+    完全一致 → base.* のglob、の順で探す。
+    """
+    if not assets_dir or not assets_dir.exists():
         return None
+    # 1) 完全一致（拡張子あり/なし問わず）
     for base in basenames:
-        for ext in _IMG_EXTS:
+        for ext in ("",) + _IMG_EXTS:
             p = assets_dir / f"{base}{ext}"
-            if p.exists():
-                try:
-                    return Image.open(p).convert("RGB")
-                except Exception:
-                    continue
+            if p.exists() and p.is_file():
+                img = _try_open(p)
+                if img:
+                    return img
+    # 2) base で始まるファイル（hero.jpg.png や HERO.JPG なども拾う）
+    for base in basenames:
+        for p in sorted(assets_dir.glob(f"{base}.*")) + sorted(assets_dir.glob(f"{base.upper()}.*")):
+            if p.is_file():
+                img = _try_open(p)
+                if img:
+                    return img
     return None
+
+
+def _try_open(p: Path) -> Image.Image | None:
+    try:
+        return Image.open(p).convert("RGB")
+    except Exception:
+        return None
 
 
 def hero_image(recipe: Recipe, assets_dir: Path | None = None) -> Image.Image:
