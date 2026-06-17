@@ -101,48 +101,66 @@ def _send_prompt(page, prompt: str) -> bool:
     return True
 
 
-def _grab_image(page, save_path: Path, timeout_s: int = 90) -> bool:
-    """応答に新しく現れた画像を取得して保存。複数戦略でフォールバック。"""
-    deadline = time.time() + timeout_s
-    last_img = None
-    while time.time() < deadline:
-        for sel in SELECTORS["response_image"]:
+def _candidate_images(page):
+    """応答画像の候補(大きめ)を出現順で返す。"""
+    out = []
+    seen = set()
+    for sel in SELECTORS["response_image"]:
+        try:
+            imgs = page.query_selector_all(sel)
+        except Exception:
+            imgs = []
+        for el in imgs:
             try:
-                imgs = page.query_selector_all(sel)
-            except Exception:
-                imgs = []
-            # 大きめの画像を最後の方から探す
-            for el in reversed(imgs):
-                try:
-                    box = el.bounding_box()
-                    if box and box["width"] >= 200 and box["height"] >= 200:
-                        last_img = el
-                        break
-                except Exception:
+                box = el.bounding_box()
+                if not box or box["width"] < 200 or box["height"] < 200:
                     continue
-            if last_img:
-                break
-        if last_img:
-            src = last_img.get_attribute("src") or ""
-            try:
-                if src.startswith("data:image"):
-                    b64 = src.split(",", 1)[1]
-                    save_path.write_bytes(base64.b64decode(b64))
-                    return True
-                if src.startswith("http"):
-                    resp = page.request.get(src)
-                    if resp.ok:
-                        save_path.write_bytes(resp.body())
-                        return True
-                # blob: などは要素のスクリーンショットで代替
-                last_img.screenshot(path=str(save_path))
-                return True
+                key = (el.get_attribute("src") or "") + f"{box['x']:.0f},{box['y']:.0f}"
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(el)
             except Exception:
-                try:
-                    last_img.screenshot(path=str(save_path))
-                    return True
-                except Exception:
-                    pass
+                continue
+    return out
+
+
+def _count_images(page) -> int:
+    return len(_candidate_images(page))
+
+
+def _save_img(page, el, save_path: Path) -> bool:
+    src = el.get_attribute("src") or ""
+    try:
+        if src.startswith("data:image"):
+            save_path.write_bytes(base64.b64decode(src.split(",", 1)[1]))
+            return True
+        if src.startswith("http"):
+            resp = page.request.get(src)
+            if resp.ok:
+                save_path.write_bytes(resp.body())
+                return True
+        el.screenshot(path=str(save_path))  # blob: などはスクショで代替
+        return True
+    except Exception:
+        try:
+            el.screenshot(path=str(save_path))
+            return True
+        except Exception:
+            return False
+
+
+def _grab_image(page, save_path: Path, baseline: int = 0, timeout_s: int = 120) -> bool:
+    """同じチャット内で、送信前の画像枚数(baseline)より増えた=新しい画像を待って保存。"""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        cands = _candidate_images(page)
+        if len(cands) > baseline:
+            # 生成完了を少し待って(描画途中を避ける)、一番新しい(末尾)を取得
+            time.sleep(2)
+            cands = _candidate_images(page)
+            if _save_img(page, cands[-1], save_path):
+                return True
         time.sleep(2)
     return False
 
@@ -184,24 +202,34 @@ def process(post_dirs, headless: bool):
             assets = d / "素材"
             assets.mkdir(exist_ok=True)
             print(f"\n=== {d.name} ===")
-            for name, prompt in needed_images(d):
-                if _exists(assets, name):
-                    print(f"  ✓ {name}: 既にあるためスキップ")
-                    continue
+
+            todo = [(n, p) for n, p in needed_images(d) if not _exists(assets, n)]
+            for n, _ in needed_images(d):
+                if _exists(assets, n):
+                    print(f"  ✓ {n}: 既にあるためスキップ")
+            if not todo:
+                continue
+
+            # この投稿用に新しいチャットを1つ開始（料理が混ざらないように）。
+            # 以降の hero/step は同じチャット内で連続生成する。
+            print("  💬 この投稿用のチャットを開始します（同一チャットで連続生成）")
+            _new_chat(page)
+            page.goto(GEMINI_URL, wait_until="domcontentloaded")
+            time.sleep(2.0)
+
+            for name, prompt in todo:
                 print(f"  ▶ {name} を生成中…")
-                _new_chat(page)
-                page.goto(GEMINI_URL, wait_until="domcontentloaded")
-                time.sleep(1.5)
+                baseline = _count_images(page)   # 送信前の画像枚数
                 if not _send_prompt(page, prompt):
                     continue
-                ok = _grab_image(page, assets / f"{name}.png")
+                ok = _grab_image(page, assets / f"{name}.png", baseline=baseline)
                 if ok:
                     print(f"  ✅ 保存: {assets / (name + '.png')}")
                     total_made += 1
                 else:
                     print(f"  ⚠ {name}: 画像を自動取得できませんでした。手動でダウンロードして "
                           f"{assets / (name + '.png')} に置いてください。")
-                time.sleep(2)
+                time.sleep(3)   # 次の入力まで少し待つ
         ctx.close()
         print(f"\n生成完了: {total_made}枚")
 
