@@ -56,6 +56,10 @@ hashtags:
     - "#献立"
   count: 8
 
+# 品質基準（デザイン責任者の審査）
+quality:
+  pass_score: 70        # 100点満点中、この点以上で合格
+
 # 投稿スケジュール（伸びやすい時間帯／JST）
 schedule:
   best_times_jst:
