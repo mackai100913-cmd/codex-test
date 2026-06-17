@@ -1,0 +1,249 @@
+#!/usr/bin/env python3
+"""Geminiウェブ版(gemini.google.com)を自動操作して画像を作り、
+「素材」フォルダへ自動保存するスクリプト（モード②・ローカル実行用）。
+
+⚠️ 重要・必ずお読みください
+  - これは「あなたのPC」で実行します（このクラウド環境では動きません）。
+  - 消費者向けGeminiの自動操作は Google の利用規約に抵触する恐れがあり、
+    アカウント制限のリスクがあります。自己責任でご利用ください。
+    安定・安全に全自動化したい場合は API課金(モードA) を推奨します。
+  - GeminiのUI変更でセレクタが合わなくなったら config/gemini_selectors.yaml を更新。
+
+== 準備（初回のみ）==
+  pip install playwright pyyaml
+  playwright install chromium
+
+== 使い方 ==
+  python auto_gemini.py                # output内の全投稿の不足画像を生成
+  python auto_gemini.py 2026-06-15_01  # 投稿を指定
+  python auto_gemini.py --headless     # 画面非表示（初回ログイン後）
+初回はブラウザが開くので、Geminiにログインしてください（プロフィールは保存され、次回以降は自動）。
+生成後は自動で  python run.py --build  まで実行し、品質審査まで行います。
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import yaml
+
+from src import config
+from src.image_generator import hero_prompt, step_prompt
+from src.recipe_generator import _recipe_from_dict
+
+GEMINI_URL = "https://gemini.google.com/app"
+PROFILE_DIR = config.ROOT / ".gemini_profile"   # ログイン状態を保存（.gitignore済み）
+SELECTORS = yaml.safe_load((config.CONFIG_DIR / "gemini_selectors.yaml").read_text(encoding="utf-8"))
+
+
+# --- 投稿ごとの「必要な画像と、そのプロンプト」一覧 ---------------------
+
+def needed_images(post_dir: Path):
+    import json
+    recipe = _recipe_from_dict(
+        json.loads((post_dir / "recipe.json").read_text(encoding="utf-8")), seed=post_dir.name
+    )
+    items = [("hero", hero_prompt(recipe))]
+    for i, st in enumerate(recipe.steps, start=1):
+        items.append((f"step_{i}", step_prompt(recipe, st.title, st.detail)))
+    return items
+
+
+def _exists(assets: Path, name: str) -> bool:
+    return any((assets / f"{name}{ext}").exists() for ext in (".png", ".jpg", ".jpeg", ".webp")) \
+        or bool(list(assets.glob(f"{name}.*")))
+
+
+# --- Playwright 操作ヘルパー -------------------------------------------
+
+def _first(page, selectors, timeout=8000):
+    """候補セレクタを上から試し、最初に見つかった要素を返す。"""
+    for sel in selectors:
+        try:
+            el = page.wait_for_selector(sel, timeout=timeout, state="visible")
+            if el:
+                return el
+        except Exception:
+            continue
+    return None
+
+
+def _wait_logged_in(page):
+    el = _first(page, SELECTORS["logged_in_marker"], timeout=4000)
+    if el:
+        return True
+    print("\n🔐 Geminiにログインしてください。ログインできたらこのターミナルで Enter を押してください…")
+    try:
+        input()
+    except EOFError:
+        time.sleep(30)
+    return _first(page, SELECTORS["logged_in_marker"], timeout=8000) is not None
+
+
+def _send_prompt(page, prompt: str) -> bool:
+    box = _first(page, SELECTORS["input_box"])
+    if not box:
+        print("  ⚠ 入力欄が見つかりません（gemini_selectors.yaml の input_box を更新してください）")
+        return False
+    box.click()
+    page.keyboard.type(prompt, delay=8)
+    time.sleep(0.5)
+    btn = _first(page, SELECTORS["send_button"], timeout=3000)
+    if btn:
+        btn.click()
+    else:
+        page.keyboard.press("Enter")
+    return True
+
+
+def _grab_image(page, save_path: Path, timeout_s: int = 90) -> bool:
+    """応答に新しく現れた画像を取得して保存。複数戦略でフォールバック。"""
+    deadline = time.time() + timeout_s
+    last_img = None
+    while time.time() < deadline:
+        for sel in SELECTORS["response_image"]:
+            try:
+                imgs = page.query_selector_all(sel)
+            except Exception:
+                imgs = []
+            # 大きめの画像を最後の方から探す
+            for el in reversed(imgs):
+                try:
+                    box = el.bounding_box()
+                    if box and box["width"] >= 200 and box["height"] >= 200:
+                        last_img = el
+                        break
+                except Exception:
+                    continue
+            if last_img:
+                break
+        if last_img:
+            src = last_img.get_attribute("src") or ""
+            try:
+                if src.startswith("data:image"):
+                    b64 = src.split(",", 1)[1]
+                    save_path.write_bytes(base64.b64decode(b64))
+                    return True
+                if src.startswith("http"):
+                    resp = page.request.get(src)
+                    if resp.ok:
+                        save_path.write_bytes(resp.body())
+                        return True
+                # blob: などは要素のスクリーンショットで代替
+                last_img.screenshot(path=str(save_path))
+                return True
+            except Exception:
+                try:
+                    last_img.screenshot(path=str(save_path))
+                    return True
+                except Exception:
+                    pass
+        time.sleep(2)
+    return False
+
+
+def _new_chat(page):
+    btn = _first(page, SELECTORS["new_chat_button"], timeout=2500)
+    if btn:
+        try:
+            btn.click()
+            time.sleep(1.0)
+        except Exception:
+            pass
+
+
+# --- メイン処理 --------------------------------------------------------
+
+def process(post_dirs, headless: bool):
+    from playwright.sync_api import sync_playwright
+
+    PROFILE_DIR.mkdir(exist_ok=True)
+    with sync_playwright() as p:
+        ctx = p.chromium.launch_persistent_context(
+            user_data_dir=str(PROFILE_DIR),
+            headless=headless,
+            channel="chrome",  # 入っていなければ下のexceptでchromiumに
+            viewport={"width": 1280, "height": 900},
+        ) if _has_chrome(p) else p.chromium.launch_persistent_context(
+            user_data_dir=str(PROFILE_DIR), headless=headless,
+            viewport={"width": 1280, "height": 900},
+        )
+        page = ctx.new_page()
+        page.goto(GEMINI_URL, wait_until="domcontentloaded")
+        if not _wait_logged_in(page):
+            print("ログインを確認できませんでした。中止します。")
+            ctx.close()
+            return
+
+        total_made = 0
+        for d in post_dirs:
+            assets = d / "素材"
+            assets.mkdir(exist_ok=True)
+            print(f"\n=== {d.name} ===")
+            for name, prompt in needed_images(d):
+                if _exists(assets, name):
+                    print(f"  ✓ {name}: 既にあるためスキップ")
+                    continue
+                print(f"  ▶ {name} を生成中…")
+                _new_chat(page)
+                page.goto(GEMINI_URL, wait_until="domcontentloaded")
+                time.sleep(1.5)
+                if not _send_prompt(page, prompt):
+                    continue
+                ok = _grab_image(page, assets / f"{name}.png")
+                if ok:
+                    print(f"  ✅ 保存: {assets / (name + '.png')}")
+                    total_made += 1
+                else:
+                    print(f"  ⚠ {name}: 画像を自動取得できませんでした。手動でダウンロードして "
+                          f"{assets / (name + '.png')} に置いてください。")
+                time.sleep(2)
+        ctx.close()
+        print(f"\n生成完了: {total_made}枚")
+
+
+def _has_chrome(p) -> bool:
+    try:
+        import shutil
+        return any(shutil.which(b) for b in ("google-chrome", "chrome", "chrome.exe")) or True
+    except Exception:
+        return True
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Geminiウェブ自動操作で画像生成→素材保存")
+    ap.add_argument("post_id", nargs="?", default=None, help="投稿ID（省略時は全件）")
+    ap.add_argument("--headless", action="store_true", help="画面を表示しない")
+    ap.add_argument("--no-build", action="store_true", help="生成後に build/審査をしない")
+    args = ap.parse_args()
+
+    root = config.OUTPUT_DIR
+    if args.post_id:
+        dirs = [root / args.post_id]
+    else:
+        dirs = sorted(d for d in root.glob("*") if (d / "recipe.json").exists())
+    dirs = [d for d in dirs if (d / "recipe.json").exists()]
+    if not dirs:
+        print("対象が見つかりません。先に python run.py を実行してください。")
+        return
+
+    try:
+        process(dirs, headless=args.headless)
+    except ModuleNotFoundError:
+        print("Playwrightが未インストールです。次を実行してください:\n"
+              "  pip install playwright pyyaml\n  playwright install chromium")
+        return
+
+    if not args.no_build:
+        print("\n▶ 合成と品質審査を実行します…")
+        for d in dirs:
+            subprocess.run([sys.executable, "run.py", "--build", d.name])
+
+
+if __name__ == "__main__":
+    main()

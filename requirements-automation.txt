@@ -1,0 +1,6 @@
+# モード②（ブラウザ自動化）専用の追加依存。
+# 通常は requirements.txt だけでOK。自動操作を使う場合のみインストール:
+#   pip install -r requirements-automation.txt
+#   playwright install chromium
+playwright>=1.40.0
+PyYAML>=6.0

@@ -1,6 +1,9 @@
 # 環境変数（APIキー）
 .env
 
+# Geminiウェブ自動操作のログインプロファイル
+.gemini_profile/
+
 # 生成物（アップロード用パッケージ）
 output/
 

@@ -39,6 +39,9 @@ python run.py            # 投稿パッケージを生成
   `素材` フォルダに入れて `python run.py --build` を実行するだけ。
 - **モードA（全自動）**: Gemini APIで料理写真も自動生成（要 請求の有効化）。
   `.env` の `GEMINI_IMAGE_ENABLED=true` で切替。
+- **モード②（ブラウザ自動化）**: `auto_gemini.py` がGeminiウェブ版を自動操作して
+  画像を作り「素材」へ自動保存→合成→審査まで実行（ローカル実行・規約リスク注意）。
+  → [`docs/AUTOMATION.md`](docs/AUTOMATION.md)
 
 → 詳しい手順は [`docs/SETUP.md`](docs/SETUP.md)
 
