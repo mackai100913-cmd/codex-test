@@ -275,6 +275,7 @@ def process(post_dirs, headless: bool):
         # 社長(このシステム)が、会長(あなた)のビジョンを翻訳した
         # デザインの目的と意図を、各責任者へ共有してから着手する。
         from src.design_director import ceo_brief
+        from src.image_generator import brand_brief
         print("\n" + ceo_brief())
 
         # 全投稿・全画像を「1つの同じチャット」で連続生成する。
@@ -282,6 +283,12 @@ def process(post_dirs, headless: bool):
         _new_chat(page)
         page.goto(GEMINI_URL, wait_until="domcontentloaded")
         time.sleep(2.0)
+
+        # ★まずジェミニとブランド世界観をすり合わせる（合意を取ってから生成開始）。
+        print("🤝 社長→ジェミニ: ブランド世界観をすり合わせ中…")
+        if _send_prompt(page, brand_brief()):
+            time.sleep(8)   # ジェミニが「了解しました」と返すのを待つ
+            print("   すり合わせ完了。この世界観を全画像で厳守させます。")
 
         for d in post_dirs:
             assets = d / "素材"
