@@ -198,6 +198,13 @@ def process(post_dirs, headless: bool):
             return
 
         total_made = 0
+
+        # 全投稿・全画像を「1つの同じチャット」で連続生成する。
+        print("\n💬 1つのチャットで全画像を連続生成します")
+        _new_chat(page)
+        page.goto(GEMINI_URL, wait_until="domcontentloaded")
+        time.sleep(2.0)
+
         for d in post_dirs:
             assets = d / "素材"
             assets.mkdir(exist_ok=True)
@@ -209,13 +216,6 @@ def process(post_dirs, headless: bool):
                     print(f"  ✓ {n}: 既にあるためスキップ")
             if not todo:
                 continue
-
-            # この投稿用に新しいチャットを1つ開始（料理が混ざらないように）。
-            # 以降の hero/step は同じチャット内で連続生成する。
-            print("  💬 この投稿用のチャットを開始します（同一チャットで連続生成）")
-            _new_chat(page)
-            page.goto(GEMINI_URL, wait_until="domcontentloaded")
-            time.sleep(2.0)
 
             for name, prompt in todo:
                 print(f"  ▶ {name} を生成中…")
