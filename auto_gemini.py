@@ -217,16 +217,16 @@ def _make_with_review(page, recipe, save_path: Path, name: str,
 
         res = review_image(tmp, recipe, kind=kind, aspect=aspect)
         mark = "✅合格" if res.passed else "❌不合格"
-        print(f"     品質審査: {res.total}/100 {mark}（{res.engine}）")
-        # 責任者ごとの合否（どの工程の責任者で問題が出たか）
+        print(f"     品質審査: 平均{res.total}/100 {mark}（各責任者の合格ライン{res.pass_score}・{res.engine}）")
+        # 責任者ごとの合否（各100点満点。どの責任者で問題が出たか）
         for v in res.directors:
             dm = "✅" if v["passed"] else "❌"
-            print(f"        {dm} {v['name']}〔{v['area']}〕 {v['score']}/{v['full']}")
+            print(f"        {dm} {v['name']}〔{v['area']}〕 {v['score']}/100")
         ng = res.failed_directors()
         if ng:
             print(f"     ⚠ 問題の所在: {'、'.join(ng)}")
         if res.summary:
-            print(f"     講評: {res.summary}")
+            print(f"     社長総評: {res.summary}")
 
         # これまでで最高得点なら採用（save_path を更新）
         if res.total > best_score:
@@ -272,6 +272,11 @@ def process(post_dirs, headless: bool):
 
         total_made = 0
 
+        # 社長(このシステム)が、会長(あなた)のビジョンを翻訳した
+        # デザインの目的と意図を、各責任者へ共有してから着手する。
+        from src.design_director import ceo_brief
+        print("\n" + ceo_brief())
+
         # 全投稿・全画像を「1つの同じチャット」で連続生成する。
         print("\n💬 1つのチャットで全画像を連続生成します")
         _new_chat(page)
@@ -297,7 +302,7 @@ def process(post_dirs, headless: bool):
                     total_made += 1
                 time.sleep(3)   # 次の入力まで少し待つ
         ctx.close()
-        print(f"\n生成完了: {total_made}枚（デザイン責任者の審査済み）")
+        print(f"\n📋 社長報告（会長へ）: 全{total_made}枚を各責任者の審査を通して納品しました。")
 
 
 def main():

@@ -1,10 +1,16 @@
-"""表紙のデザイン責任者（画像の品質審査）。
+"""デザイン品質の審査（経営体制つき）。
 
-Geminiのビジョン（画像理解）で、料理写真／表紙がロールモデルの要件と
-合格ラインを満たすかを採点する。合格したものだけを通すことで品質を担保する。
+経営体制:
+  会長(ユーザー) ─ 社長(このシステム) ─ 各責任者(専門家)
+  - 会長はビジョンの所有者。会長と直接話すのは社長だけ。
+  - 社長は会長のビジョンを「デザインの目的(DESIGN_PURPOSE)」へ翻訳し、
+    各責任者へ意図(intent)を伝え、品質結果に責任を持つ。
+  - 各責任者は担当領域を【100点満点】で審査する。構図は独立責任者。
+    📷撮影 / 🍳フードスタイリスト / 🎨アート / 📐構図 / 🔍校閲
 
-- 画像生成は無料枠で不可だが、画像の「採点・講評」はテキスト系モデルで可能。
-- APIが使えない場合は簡易ヒューリスティック（明るさ・縦横比など）で代替判定する。
+Geminiのビジョン（画像理解）で1回の解析を行い、各責任者のスコアを得る。
+全責任者が合格ラインを満たした画像だけを通すことで品質を担保する。
+APIが使えない場合は簡易ヒューリスティック（明るさ・縦横比など）で代替判定する。
 """
 
 from __future__ import annotations
@@ -19,56 +25,85 @@ from PIL import Image
 from . import config
 from .recipe_generator import Recipe
 
-# 審査の観点（ロールモデル＝暗背景の本格レシピ写真／"AIっぽさ"を最も嫌う）
-RUBRIC = [
-    ("realistic", "本物感（AIっぽくない）", "実際に撮影した本物の料理に見えるか。CG・作り物っぽさが無いか。", 30),
-    ("appetizing", "シズル感・美味しそう", "照り・湯気・みずみずしさがあり食欲をそそるか。", 20),
-    ("mood", "世界観（暗背景・高級感）", "暗い背景でドラマチック、ブランドの世界観に合うか。", 15),
-    ("composition", "構図", "主役の料理が中央〜下部に大きく、縦長(9:16)に向くか。", 15),
-    ("match", "要望との一致", "指定した料理そのものに見えるか。", 15),
-    ("clean", "文字・ロゴ無し", "写真内に文字やロゴ・透かしが入っていないか(表紙文字は後で載せる)。", 5),
-]
+# =============================================================================
+# 経営体制
+#   会長（ユーザー）   … 最終ビジョンの所有者。会長と直接話すのは社長だけ。
+#   社長（このシステム）… 会長のビジョンを「デザインの目的」に翻訳し、各責任者へ
+#                         意図(intent)を伝え、品質の結果に責任を持つ統括役。
+#   各責任者           … 担当領域の専門家。社長の意図に沿って自領域を100点満点で評価。
+# =============================================================================
 
-# デザイン品質フローの工程ごとの責任者。各責任者が担当する採点項目を持ち、
-# 自分の担当領域の合計が合格率を満たさなければ「その責任者の不合格」となる。
-# → どの責任者(=どの工程)で問題が出たかが一目で分かる。
+# 社長が掲げるデザインの目的（会長のビジョンを社長が翻訳したもの）
+DESIGN_PURPOSE = (
+    "暗背景で高級感のある“本物の家庭料理写真”でグルメTikTokの素材を作る。"
+    "スクロールの手を止めさせ「美味しそう・作りたい」と思わせるのが目的。"
+    "AIっぽさを徹底排除し、世界観・構図・シズル感を全投稿で統一する。"
+)
+
+# デザイン品質フローの工程ごとの責任者。構図は独立責任者。各自100点満点で評価する。
+# intent = 社長が各責任者へ伝える意図 / guide = 審査の着眼点
 DIRECTORS = [
-    ("📷 撮影ディレクター", "写真のリアルさ・画質", ["realistic"]),
-    ("🍳 フードスタイリスト", "シズル感・美味しそうさ", ["appetizing"]),
-    ("🎨 アートディレクター", "世界観・構図の統一", ["mood", "composition"]),
-    ("🔍 校閲ディレクター", "要望一致・文字混入", ["match", "clean"]),
+    {
+        "key": "photo", "name": "📷 撮影ディレクター", "area": "写真のリアルさ・画質",
+        "intent": "一眼レフで撮った実写に見せること。CG/イラスト/作り物っぽさは即不合格。8K級の解像感とピント、自然な質感を担保せよ。",
+        "guide": "実際に撮影した本物の料理写真に見えるか。CG・AI・作り物っぽさが無いか。解像感・ピント・質感。",
+    },
+    {
+        "key": "styling", "name": "🍳 フードスタイリスト", "area": "シズル感・美味しそうさ",
+        "intent": "思わず生唾を飲むシズル感を最優先。湯気・照り・みずみずしさ・焼き色で食欲を最大化し、盛り付けを美しく。",
+        "guide": "照り・湯気・みずみずしさ・焼き色があり食欲をそそるか。盛り付けの美しさ。",
+    },
+    {
+        "key": "art", "name": "🎨 アートディレクター", "area": "世界観・ブランド統一",
+        "intent": "暗背景＋暖色光の高級和モダンで全投稿を統一せよ。色味とライティングのブレを許すな。",
+        "guide": "暗背景でドラマチック、暖色ライティング、ブランドの世界観に合うか。色味の統一感。",
+    },
+    {
+        "key": "composition", "name": "📐 構図ディレクター", "area": "構図・レイアウト",
+        "intent": "主役の料理を画面中央に大きく、指定アスペクト比に最適化せよ。アングル・余白・視線誘導を設計せよ。",
+        "guide": "主役が画面中央に大きく、指定アスペクト比に最適な構図か。アングル・余白・バランス。",
+    },
+    {
+        "key": "proof", "name": "🔍 校閲ディレクター", "area": "要望一致・文字混入",
+        "intent": "指定の料理であること、写真内に文字/ロゴ/透かしが無いことを厳格に確認せよ。",
+        "guide": "指定した料理そのものに見えるか。写真内に文字・ロゴ・透かしが無いか。",
+    },
 ]
 
-_WEIGHT = {k: w for k, _l, _d, w in RUBRIC}
-_LABEL = {k: l for k, l, _d, _w in RUBRIC}
+
+def ceo_brief() -> str:
+    """社長が各責任者へデザインの目的と意図を共有する『指示書』テキスト。"""
+    lines = ["【社長から各責任者へ：デザイン意図の共有】",
+             f"◆デザインの目的: {DESIGN_PURPOSE}", "◆各責任者への意図:"]
+    for d in DIRECTORS:
+        lines.append(f"  {d['name']}〔{d['area']}〕→ {d['intent']}")
+    return "\n".join(lines)
 
 
-def _director_verdicts(scores: dict, pass_ratio: float) -> list[dict]:
-    """採点結果を責任者ごとに集計し、各責任者の合否・コメントを返す。"""
+def _director_verdicts(scores: dict, pass_score: int) -> list[dict]:
+    """各責任者の100点満点スコアから合否・コメントを構成する。"""
     out = []
-    for name, area, keys in DIRECTORS:
-        got = sum(int(scores.get(k, {}).get("score", 0)) for k in keys)
-        full = sum(_WEIGHT[k] for k in keys)
-        passed = full > 0 and got >= full * pass_ratio
-        # 不合格項目のコメントを集約
-        notes = [f"{_LABEL[k]}: {scores.get(k, {}).get('comment', '')}".strip()
-                 for k in keys if int(scores.get(k, {}).get("score", 0)) < _WEIGHT[k] * pass_ratio]
-        out.append({"name": name, "area": area, "keys": keys,
-                    "score": got, "full": full, "passed": passed, "notes": notes})
+    for d in DIRECTORS:
+        s = scores.get(d["key"], {})
+        score = int(s.get("score", 0))
+        passed = score >= pass_score
+        out.append({"key": d["key"], "name": d["name"], "area": d["area"],
+                    "score": score, "passed": passed,
+                    "comment": s.get("comment", "")})
     return out
 
 
 @dataclass
 class ReviewResult:
-    passed: bool
-    total: int
-    pass_score: int
-    scores: dict = field(default_factory=dict)   # key -> {"score":int,"comment":str}
+    passed: bool                                  # 全責任者が合格したか
+    total: int                                    # 全責任者の平均点(0-100)
+    pass_score: int                               # 各責任者の合格ライン(100点満点中)
+    scores: dict = field(default_factory=dict)    # key -> {"score":0-100,"comment":str}
     summary: str = ""
-    requests: list[str] = field(default_factory=list)   # 改善要望
+    requests: list[str] = field(default_factory=list)   # 改善要望(責任者名付き)
     regenerate_prompt: str = ""                          # 作り直し用プロンプト案
     engine: str = ""                                     # gemini / heuristic
-    directors: list = field(default_factory=list)        # 責任者ごとの合否
+    directors: list = field(default_factory=list)        # 責任者ごとの合否(各100点)
 
     def failed_directors(self) -> list[str]:
         return [d["name"] for d in self.directors if not d["passed"]]
@@ -76,28 +111,25 @@ class ReviewResult:
     def report(self, title: str = "") -> str:
         mark = "✅ 合格" if self.passed else "❌ 不合格"
         lines = [
-            "==============================",
+            "============================================",
             f"  デザイン品質審査 {(': ' + title) if title else ''}",
-            "==============================",
-            f"判定: {mark}   総合: {self.total}/100 （合格ライン {self.pass_score}）",
+            "============================================",
+            "経営体制: 会長(オーナー) ─ 社長(統括/意図伝達) ─ 各責任者(100点満点で審査)",
+            f"判定: {mark}   平均: {self.total}/100   各責任者の合格ライン: {self.pass_score}",
             f"審査エンジン: {self.engine}",
         ]
         if self.directors:
             ng = self.failed_directors()
             lines += ["",
-                      f"責任者別の判定（問題の所在: {('、'.join(ng) if ng else 'なし＝全員OK')}）"]
+                      f"■責任者別の判定（問題の所在: {('、'.join(ng) if ng else 'なし＝全員合格')}）"]
             for d in self.directors:
                 dm = "✅" if d["passed"] else "❌"
-                lines.append(f"  {dm} {d['name']}〔{d['area']}〕 {d['score']}/{d['full']}")
-                for n in d["notes"]:
-                    lines.append(f"        - {n}")
-        lines += ["", "【項目別】"]
-        for key, label, _desc, weight in RUBRIC:
-            s = self.scores.get(key, {})
-            lines.append(f"  ・{label}: {s.get('score', '-')}/{weight}  {s.get('comment', '')}")
-        lines += ["", "【講評】", self.summary or "-"]
+                lines.append(f"  {dm} {d['name']}〔{d['area']}〕 {d['score']}/100")
+                if d["comment"]:
+                    lines.append(f"        所見: {d['comment']}")
+        lines += ["", "【総評（社長まとめ）】", self.summary or "-"]
         if self.requests:
-            lines += ["", "【改善要望】"] + [f"  - {r}" for r in self.requests]
+            lines += ["", "【改善要望（担当責任者別）】"] + [f"  - {r}" for r in self.requests]
         if not self.passed and self.regenerate_prompt:
             lines += ["", "【作り直し用プロンプト案（Geminiアプリに貼る）】", self.regenerate_prompt]
         return "\n".join(lines)
@@ -158,32 +190,43 @@ def _gemini_review(image_path: Path, recipe: Recipe,
 
     dish = f"{recipe.title_top}{recipe.title_main}"
     if kind == "step":
-        subject = (f"これは料理「{recipe.title_main}」の【調理工程】を写した写真のはずです。"
+        subject = (f"この画像は料理「{recipe.title_main}」の【調理工程】写真のはずです。"
                    "完成品ではなく、鍋・フライパン・まな板など調理中の様子が、"
-                   "ヒーロー写真と同じ世界観・色味で撮れているかを見てください。")
-        comp = f"主役(調理中の中身)が画面の中央に大きく写り、正方形({aspect})に向く構図か。"
+                   "ヒーロー写真と同じ世界観・色味で撮れているか。")
+        comp_extra = f"正方形({aspect})に最適化されているか。"
     else:
-        subject = f"これは完成した料理「{dish}」の【表紙メイン写真】のはずです。"
-        comp = f"主役の料理が画面の中央に大きく写り、縦長({aspect})に向く構図か。"
-    rubric_txt = "\n".join(
-        f'- {k}（{label}・{w}点満点）: {(comp if k == "composition" else desc)}'
-        for k, label, desc, w in RUBRIC
-    )
-    prompt = f"""あなたは人気グルメ系レシピTikTokの「デザイン責任者」です。
-提供された料理写真が、投稿素材として合格ラインかを厳しく審査してください。
-{subject}
-ロールモデルは暗背景の本格的な料理写真で、最も重視するのは「AIっぽくない本物感」、
-次に「シズル感（美味しそう）」と「世界観・構図の統一」です。妥協せず辛口に採点すること。
+        subject = f"この画像は完成した料理「{dish}」の【表紙メイン写真】のはずです。"
+        comp_extra = f"縦長({aspect})に最適化されているか。"
 
-# 採点項目（各満点）
-{rubric_txt}
+    # 社長が各責任者に伝える意図＋着眼点（構図ディレクターにはアスペクトも明示）
+    dir_lines = []
+    for d in DIRECTORS:
+        guide = d["guide"] + (f" {comp_extra}" if d["key"] == "composition" else "")
+        dir_lines.append(f'- {d["key"]}（{d["name"]}・{d["area"]}）\n'
+                         f'    社長の意図: {d["intent"]}\n'
+                         f'    着眼点: {guide}')
+    directors_txt = "\n".join(dir_lines)
+    json_keys = ", ".join(f'"{d["key"]}": {{"score":0,"comment":"..."}}' for d in DIRECTORS)
+
+    prompt = f"""あなたはグルメ系レシピTikTok制作会社の「社長」です。会社の経営体制は次の通り:
+- 会長(オーナー)のビジョンを、社長であるあなたが「デザインの目的」に翻訳して各責任者へ意図を伝える。
+- 各責任者は専門領域のプロで、社長の意図に沿って自分の領域だけを【100点満点】で厳しく採点する。
+
+# デザインの目的（社長が会長のビジョンを翻訳したもの）
+{DESIGN_PURPOSE}
+
+# 審査対象
+{subject}
+妥協せず辛口に。最重要は「AIっぽくない本物感」。
+
+# 各責任者（それぞれ自領域を0〜100点で採点。commentは具体的な指摘を1文）
+{directors_txt}
 
 # 出力（必ずJSONのみ。前後に文章やマークダウン記号を付けない）
 {{
-  "scores": {{ "realistic": {{"score": 0, "comment": "..."}}, "appetizing": {{"score":0,"comment":"..."}}, "mood": {{"score":0,"comment":"..."}}, "composition": {{"score":0,"comment":"..."}}, "match": {{"score":0,"comment":"..."}}, "clean": {{"score":0,"comment":"..."}} }},
-  "summary": "総評(80文字程度)",
-  "requests": ["改善要望を具体的に2〜4個"],
-  "regenerate_prompt": "もっと良くするためにGeminiアプリへ貼る画像生成プロンプト(日本語)"
+  "scores": {{ {json_keys} }},
+  "summary": "社長としての総評(80文字程度)",
+  "regenerate_prompt": "改善のためGeminiアプリへ貼る画像生成プロンプト(日本語・具体的)"
 }}
 """
     try:
@@ -200,14 +243,13 @@ def _gemini_review(image_path: Path, recipe: Recipe,
             text = text[text.find("{"): text.rfind("}") + 1]
         d = json.loads(text)
         scores = d.get("scores", {})
-        total = sum(int(scores.get(k, {}).get("score", 0)) for k, *_ in RUBRIC)
         ps = _pass_score()
-        verdicts = _director_verdicts(scores, ps / 100)
+        verdicts = _director_verdicts(scores, ps)
+        total = round(sum(v["score"] for v in verdicts) / len(verdicts)) if verdicts else 0
         # 改善要望を「どの責任者の指摘か」付きで構成
-        reqs = [f"【{v['name']}】{n}" for v in verdicts if not v["passed"] for n in v["notes"]]
-        reqs += [r for r in d.get("requests", []) if r]
+        reqs = [f"【{v['name']}】{v['comment']}" for v in verdicts if not v["passed"] and v["comment"]]
         return ReviewResult(
-            passed=total >= ps,
+            passed=all(v["passed"] for v in verdicts),
             total=total,
             pass_score=ps,
             scores=scores,
@@ -249,29 +291,29 @@ def _heuristic_review(image_path: Path, recipe: Recipe,
     # サイズが十分か
     enough_res = min(w, h) >= 600
 
+    # 各責任者を100点満点で簡易採点（目視できない領域は控えめに）
+    comp_ok = vertical and enough_res
     scores = {
-        "realistic": {"score": 18 if has_content else 5, "comment": "自動目視は不可。内容のみ確認。"},
-        "appetizing": {"score": 12 if has_content else 4, "comment": "色味あり" if has_content else "情報量少"},
-        "mood": {"score": 13 if dark_mood else 7, "comment": "暗め" if dark_mood else "明るめ(世界観要確認)"},
-        "composition": {"score": 12 if vertical else 6, "comment": "縦長OK" if vertical else "縦長推奨"},
-        "match": {"score": 8, "comment": "要望一致は目視不可(API推奨)"},
-        "clean": {"score": 4, "comment": "文字有無は目視不可"},
+        "photo": {"score": 60 if has_content else 20,
+                  "comment": "自動目視では本物感を断定不可（API審査推奨）。"},
+        "styling": {"score": 55 if has_content else 20,
+                    "comment": "色味あり" if has_content else "情報量が少ない"},
+        "art": {"score": 80 if dark_mood else 45,
+                "comment": "暗背景で世界観OK" if dark_mood else "明るすぎ。背景を暗く"},
+        "composition": {"score": 80 if comp_ok else 40,
+                        "comment": (f"アスペクト/解像度OK" if comp_ok
+                                    else f"アスペクト比({aspect})・解像度({w}x{h})要改善")},
+        "proof": {"score": 60, "comment": "料理一致・文字有無は目視不可（API審査推奨）。"},
     }
-    if not enough_res:
-        scores["composition"]["score"] = 4
-        scores["composition"]["comment"] = f"解像度低 {w}x{h}"
-    total = sum(s["score"] for s in scores.values())
-    verdicts = _director_verdicts(scores, ps / 100)
-    reqs = ([] if has_content else ["被写体がはっきり写った写真にしてください。"]) \
-        + ([] if vertical else [f"指定のアスペクト比({aspect})に合う写真にしてください。"]) \
-        + ([] if dark_mood else ["背景を暗くして高級感を出すと世界観に合います。"])
-    reqs = [f"【{v['name']}】{n}" for v in verdicts if not v["passed"] for n in v["notes"]] + reqs
+    verdicts = _director_verdicts(scores, ps)
+    total = round(sum(v["score"] for v in verdicts) / len(verdicts)) if verdicts else 0
+    reqs = [f"【{v['name']}】{v['comment']}" for v in verdicts if not v["passed"] and v["comment"]]
     return ReviewResult(
-        passed=total >= ps,
+        passed=all(v["passed"] for v in verdicts),
         total=total,
         pass_score=ps,
         scores=scores,
-        summary="簡易判定（明るさ・縦横比・解像度）。本格審査はGemini APIキー設定時に有効。",
+        summary="簡易判定（明るさ・縦横比・解像度のみ）。本格審査はGemini APIキー設定時に有効。",
         requests=reqs,
         engine="heuristic（APIなし簡易判定）",
         directors=verdicts,
