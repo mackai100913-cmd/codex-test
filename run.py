@@ -27,7 +27,6 @@ def _review(post_id: str | None) -> None:
     from pathlib import Path
 
     from src.design_director import review_image
-    from src.image_generator import _find_asset
     from src.recipe_generator import _recipe_from_dict
 
     root = config.OUTPUT_DIR
@@ -57,8 +56,25 @@ def _review(post_id: str | None) -> None:
             print(f"⚠ {d.name}: 素材フォルダに hero 画像がありません。")
             continue
 
-        result = review_image(hero, recipe)
-        report = result.report(title=f"{recipe.title_top}{recipe.title_main}")
+        reports = []
+        # メイン写真(hero)を審査
+        result = review_image(hero, recipe, kind="hero", aspect="9:16")
+        reports.append(result.report(title=f"{recipe.title_top}{recipe.title_main}"))
+        # 工程写真(step_N)も審査して品質を担保
+        for i in range(1, len(recipe.steps) + 1):
+            sp_path = None
+            for base in (f"step_{i}", f"step{i}", f"{i:02d}_step", f"{i:02d}"):
+                for ext in (".jpg", ".jpeg", ".png", ".webp"):
+                    if (assets / f"{base}{ext}").exists():
+                        sp_path = assets / f"{base}{ext}"
+                        break
+                if sp_path:
+                    break
+            if sp_path:
+                r = review_image(sp_path, recipe, kind="step", aspect="1:1")
+                reports.append(r.report(title=f"工程{i}"))
+
+        report = "\n\n".join(reports)
         print("\n" + report)
         (d / "審査結果.txt").write_text(report + "\n", encoding="utf-8")
         print(f"\n→ 審査結果を保存: {d / '審査結果.txt'}")

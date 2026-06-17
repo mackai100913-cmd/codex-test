@@ -41,16 +41,25 @@ PROFILE_DIR = config.ROOT / ".gemini_profile"   # ログイン状態を保存（
 SELECTORS = yaml.safe_load((config.CONFIG_DIR / "gemini_selectors.yaml").read_text(encoding="utf-8"))
 
 
-# --- 投稿ごとの「必要な画像と、そのプロンプト」一覧 ---------------------
+# デザイン責任者の合格ラインに達するまで作り直す最大回数（1回目＋作り直し）
+MAX_ATTEMPTS = 3
 
-def needed_images(post_dir: Path):
+
+def load_recipe(post_dir: Path):
     import json
-    recipe = _recipe_from_dict(
+    return _recipe_from_dict(
         json.loads((post_dir / "recipe.json").read_text(encoding="utf-8")), seed=post_dir.name
     )
-    items = [("hero", hero_prompt(recipe))]
+
+
+# --- 投稿ごとの「必要な画像と、そのプロンプト」一覧 ---------------------
+# 各要素: (ファイル名, プロンプト, 種類, アスペクト)
+
+def needed_images(post_dir: Path):
+    recipe = load_recipe(post_dir)
+    items = [("hero", hero_prompt(recipe), "hero", "9:16")]
     for i, st in enumerate(recipe.steps, start=1):
-        items.append((f"step_{i}", step_prompt(recipe, st.title, st.detail)))
+        items.append((f"step_{i}", step_prompt(recipe, st.title, st.detail), "step", "1:1"))
     return items
 
 
@@ -175,6 +184,63 @@ def _new_chat(page):
             pass
 
 
+# --- デザイン責任者による品質チェック＋作り直しループ -------------------
+
+def _retry_prompt(orig_prompt: str, result) -> str:
+    """審査で不合格だった画像を、改善要望を添えて作り直すためのプロンプト。"""
+    reqs = "\n".join(f"・{r}" for r in (result.requests or [])) or "・もっと美味しそうに、本物の写真らしく。"
+    base = result.regenerate_prompt or orig_prompt
+    return (
+        f"今の画像はデザイン責任者の審査で {result.total}/100点（不合格）でした。"
+        "同じ料理・同じ世界観のまま、次の点を必ず改善して作り直してください:\n"
+        f"{reqs}\n---\n{base}"
+    )
+
+
+def _make_with_review(page, recipe, save_path: Path, name: str,
+                      prompt: str, kind: str, aspect: str) -> bool:
+    """画像を生成→デザイン責任者が審査→不合格なら作り直し。合格 or 最高得点を採用。"""
+    from src.design_director import review_image
+
+    best_score = -1
+    cur_prompt = prompt
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        tag = "生成" if attempt == 1 else f"作り直し{attempt - 1}回目"
+        print(f"  ▶ {name} を{tag}中…")
+        baseline = _count_images(page)
+        if not _send_prompt(page, cur_prompt):
+            return False
+        tmp = save_path.with_suffix(f".try{attempt}.png")
+        if not _grab_image(page, tmp, baseline=baseline):
+            print(f"  ⚠ {name}: 画像を自動取得できませんでした。手動で {save_path} に置いてください。")
+            return best_score >= 0
+
+        res = review_image(tmp, recipe, kind=kind, aspect=aspect)
+        mark = "✅合格" if res.passed else "❌不合格"
+        print(f"     デザイン責任者: {res.total}/100 {mark}（{res.engine}）")
+        if res.summary:
+            print(f"     講評: {res.summary}")
+
+        # これまでで最高得点なら採用（save_path を更新）
+        if res.total > best_score:
+            best_score = res.total
+            tmp.replace(save_path)
+        else:
+            tmp.unlink(missing_ok=True)
+
+        if res.passed:
+            print(f"  ✅ {name}: 合格して保存 → {save_path}")
+            return True
+        if attempt < MAX_ATTEMPTS:
+            for r in (res.requests or [])[:4]:
+                print(f"       → 改善指示: {r}")
+            cur_prompt = _retry_prompt(prompt, res)
+            time.sleep(2)
+
+    print(f"  ⚠ {name}: {MAX_ATTEMPTS}回試して合格に届かず。最高得点({best_score})の画像を採用 → {save_path}")
+    return True
+
+
 # --- メイン処理 --------------------------------------------------------
 
 def process(post_dirs, headless: bool):
@@ -208,30 +274,23 @@ def process(post_dirs, headless: bool):
         for d in post_dirs:
             assets = d / "素材"
             assets.mkdir(exist_ok=True)
+            recipe = load_recipe(d)
             print(f"\n=== {d.name} ===")
 
-            todo = [(n, p) for n, p in needed_images(d) if not _exists(assets, n)]
-            for n, _ in needed_images(d):
-                if _exists(assets, n):
-                    print(f"  ✓ {n}: 既にあるためスキップ")
+            todo = [it for it in needed_images(d) if not _exists(assets, it[0])]
+            for it in needed_images(d):
+                if _exists(assets, it[0]):
+                    print(f"  ✓ {it[0]}: 既にあるためスキップ")
             if not todo:
                 continue
 
-            for name, prompt in todo:
-                print(f"  ▶ {name} を生成中…")
-                baseline = _count_images(page)   # 送信前の画像枚数
-                if not _send_prompt(page, prompt):
-                    continue
-                ok = _grab_image(page, assets / f"{name}.png", baseline=baseline)
-                if ok:
-                    print(f"  ✅ 保存: {assets / (name + '.png')}")
+            for name, prompt, kind, aspect in todo:
+                if _make_with_review(page, recipe, assets / f"{name}.png",
+                                     name, prompt, kind, aspect):
                     total_made += 1
-                else:
-                    print(f"  ⚠ {name}: 画像を自動取得できませんでした。手動でダウンロードして "
-                          f"{assets / (name + '.png')} に置いてください。")
                 time.sleep(3)   # 次の入力まで少し待つ
         ctx.close()
-        print(f"\n生成完了: {total_made}枚")
+        print(f"\n生成完了: {total_made}枚（デザイン責任者の審査済み）")
 
 
 def main():

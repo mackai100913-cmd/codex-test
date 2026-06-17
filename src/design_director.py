@@ -105,7 +105,8 @@ def _generate_with_retry(client, models: list[str], contents, attempts: int = 3)
 # Gemini ビジョンによる審査
 # ---------------------------------------------------------------------------
 
-def _gemini_review(image_path: Path, recipe: Recipe) -> ReviewResult | None:
+def _gemini_review(image_path: Path, recipe: Recipe,
+                   kind: str = "hero", aspect: str = "9:16") -> ReviewResult | None:
     api_key = config.gemini_api_key()
     if not api_key:
         return None
@@ -116,13 +117,23 @@ def _gemini_review(image_path: Path, recipe: Recipe) -> ReviewResult | None:
         return None
 
     dish = f"{recipe.title_top}{recipe.title_main}"
+    if kind == "step":
+        subject = (f"これは料理「{recipe.title_main}」の【調理工程】を写した写真のはずです。"
+                   "完成品ではなく、鍋・フライパン・まな板など調理中の様子が、"
+                   "ヒーロー写真と同じ世界観・色味で撮れているかを見てください。")
+        comp = f"主役(調理中の中身)が画面の中央に大きく写り、正方形({aspect})に向く構図か。"
+    else:
+        subject = f"これは完成した料理「{dish}」の【表紙メイン写真】のはずです。"
+        comp = f"主役の料理が画面の中央に大きく写り、縦長({aspect})に向く構図か。"
     rubric_txt = "\n".join(
-        f'- {k}（{label}・{w}点満点）: {desc}' for k, label, desc, w in RUBRIC
+        f'- {k}（{label}・{w}点満点）: {(comp if k == "composition" else desc)}'
+        for k, label, desc, w in RUBRIC
     )
-    prompt = f"""あなたは人気グルメ系レシピTikTokの「表紙デザイン責任者」です。
-提供された料理写真が、投稿の表紙素材として合格ラインかを厳しく審査してください。
-この料理は「{dish}」のはずです。ロールモデルは暗背景の本格的な料理写真で、
-最も重視するのは「AIっぽくない本物感」です。
+    prompt = f"""あなたは人気グルメ系レシピTikTokの「デザイン責任者」です。
+提供された料理写真が、投稿素材として合格ラインかを厳しく審査してください。
+{subject}
+ロールモデルは暗背景の本格的な料理写真で、最も重視するのは「AIっぽくない本物感」、
+次に「シズル感（美味しそう）」と「世界観・構図の統一」です。妥協せず辛口に採点すること。
 
 # 採点項目（各満点）
 {rubric_txt}
@@ -169,7 +180,8 @@ def _gemini_review(image_path: Path, recipe: Recipe) -> ReviewResult | None:
 # フォールバック（簡易ヒューリスティック）
 # ---------------------------------------------------------------------------
 
-def _heuristic_review(image_path: Path, recipe: Recipe) -> ReviewResult:
+def _heuristic_review(image_path: Path, recipe: Recipe,
+                      kind: str = "hero", aspect: str = "9:16") -> ReviewResult:
     ps = _pass_score()
     try:
         img = Image.open(image_path).convert("RGB")
@@ -180,8 +192,11 @@ def _heuristic_review(image_path: Path, recipe: Recipe) -> ReviewResult:
     small = img.resize((64, 64))
     px = list(small.getdata())
     brightness = sum(sum(p) for p in px) / (len(px) * 3)
-    # 縦長か
-    vertical = h >= w
+    # 縦長(表紙)か / 正方形(工程)か。種類に応じて期待アスペクトを判定。
+    if kind == "step":
+        vertical = 0.8 <= (w / h) <= 1.25   # ほぼ正方形ならOK扱い
+    else:
+        vertical = h >= w
     # 真っ黒/真っ白でないか（被写体がありそうか）
     has_content = 20 < brightness < 220
     # 暗めの世界観か
@@ -208,15 +223,21 @@ def _heuristic_review(image_path: Path, recipe: Recipe) -> ReviewResult:
         scores=scores,
         summary="簡易判定（明るさ・縦横比・解像度）。本格審査はGemini APIキー設定時に有効。",
         requests=([] if has_content else ["被写体がはっきり写った写真にしてください。"])
-                 + ([] if vertical else ["縦長(9:16)の写真にしてください。"])
+                 + ([] if vertical else [f"指定のアスペクト比({aspect})に合う写真にしてください。"])
                  + ([] if dark_mood else ["背景を暗くして高級感を出すと世界観に合います。"]),
         engine="heuristic（APIなし簡易判定）",
     )
 
 
-def review_image(image_path: Path, recipe: Recipe) -> ReviewResult:
-    """料理写真を審査して合否・点数・講評を返す。Gemini → 失敗時ヒューリスティック。"""
+def review_image(image_path: Path, recipe: Recipe,
+                 kind: str = "hero", aspect: str = "9:16") -> ReviewResult:
+    """料理写真を審査して合否・点数・講評を返す。Gemini → 失敗時ヒューリスティック。
+
+    kind: "hero"(表紙メイン写真) / "step"(調理工程写真)
+    aspect: 期待するアスペクト比（"9:16" / "1:1"）
+    """
     if not image_path.exists():
         return ReviewResult(False, 0, _pass_score(),
                             summary=f"画像が見つかりません: {image_path}", engine="-")
-    return _gemini_review(image_path, recipe) or _heuristic_review(image_path, recipe)
+    return (_gemini_review(image_path, recipe, kind, aspect)
+            or _heuristic_review(image_path, recipe, kind, aspect))
