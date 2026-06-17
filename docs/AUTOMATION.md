@@ -59,6 +59,25 @@ python auto_gemini.py 2026-06-15_01   # 投稿を指定
 - 生成後、自動で `python run.py --build`（合成＋品質審査）まで実行します。
 - 既に素材がある画像はスキップします。
 
+### 既存チャットに合流する（世界観の文脈を継続）
+
+ジェミニの履歴にある共通チャット（既定名 **`TikTok画像自動化`**）に毎回合流し、
+すり合わせ済みのブランド世界観を引き継いで画像を作ります。
+
+```bash
+python auto_gemini.py                 # 既定で「TikTok画像自動化」に合流
+python auto_gemini.py --chat "別名"    # 合流するチャット名を変更
+python auto_gemini.py --new           # 合流せず新規チャットで行う
+python auto_gemini.py --realign       # 合流先で世界観をもう一度共有し直す
+```
+
+- チャット名は `.env` の `GEMINI_CHAT_NAME` でも指定できます。
+- 合流が見つからない場合は新規チャットを開始します。その最初のチャットを
+  ジェミニ上で `TikTok画像自動化` と名付けておくと、次回から合流できます。
+- 合流先チャットの名前は、ジェミニのUIで会話を作って手動でリネームしてください
+  （Web UI変更で履歴が開けない場合は `config/gemini_selectors.yaml` の
+  `menu_button` を調整）。
+
 ## うまく動かないとき（UI変更でセレクタがずれた場合）
 
 GeminiのWeb UIは頻繁に変わります。入力欄や画像が見つからない場合は、

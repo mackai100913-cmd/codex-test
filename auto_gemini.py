@@ -40,6 +40,10 @@ GEMINI_URL = "https://gemini.google.com/app"
 PROFILE_DIR = config.ROOT / ".gemini_profile"   # ログイン状態を保存（.gitignore済み）
 SELECTORS = yaml.safe_load((config.CONFIG_DIR / "gemini_selectors.yaml").read_text(encoding="utf-8"))
 
+# 既定で合流するジェミニの既存チャット名（会長が用意した共通チャット）。
+# 環境変数 GEMINI_CHAT_NAME か CLI の --chat で上書き可能。
+CHAT_NAME = config.env("GEMINI_CHAT_NAME", "TikTok画像自動化")
+
 
 # デザイン責任者の合格ラインに達するまで作り直す最大回数（1回目＋作り直し）
 MAX_ATTEMPTS = 3
@@ -184,6 +188,27 @@ def _new_chat(page):
             pass
 
 
+def _open_chat(page, title: str) -> bool:
+    """サイドバーの履歴から、指定タイトルの既存チャットを開いて合流する。"""
+    # まずサイドバー(履歴)を開く（既に開いていれば無視される）
+    btn = _first(page, SELECTORS.get("menu_button", []), timeout=3000)
+    if btn:
+        try:
+            btn.click()
+            time.sleep(1.2)
+        except Exception:
+            pass
+    # タイトル一致の会話をクリック
+    try:
+        item = page.get_by_text(title, exact=False).first
+        item.wait_for(state="visible", timeout=6000)
+        item.click()
+        time.sleep(2.5)
+        return True
+    except Exception:
+        return False
+
+
 # --- デザイン責任者による品質チェック＋作り直しループ -------------------
 
 def _retry_prompt(orig_prompt: str, result) -> str:
@@ -250,7 +275,7 @@ def _make_with_review(page, recipe, save_path: Path, name: str,
 
 # --- メイン処理 --------------------------------------------------------
 
-def process(post_dirs, headless: bool):
+def process(post_dirs, headless: bool, chat_name: str = "", realign: bool = False):
     from playwright.sync_api import sync_playwright
 
     PROFILE_DIR.mkdir(exist_ok=True)
@@ -278,17 +303,32 @@ def process(post_dirs, headless: bool):
         from src.image_generator import brand_brief
         print("\n" + ceo_brief())
 
-        # 全投稿・全画像を「1つの同じチャット」で連続生成する。
-        print("\n💬 1つのチャットで全画像を連続生成します")
-        _new_chat(page)
-        page.goto(GEMINI_URL, wait_until="domcontentloaded")
-        time.sleep(2.0)
+        # 会長が用意した既存チャットに合流する（世界観の文脈を回をまたいで継続）。
+        joined = False
+        if chat_name:
+            print(f"\n💬 既存チャット「{chat_name}」に合流を試みます…")
+            joined = _open_chat(page, chat_name)
+        if joined:
+            print(f"   ✅ 「{chat_name}」に合流しました。これまでの世界観の文脈を引き継ぎます。")
+        else:
+            if chat_name:
+                print(f"   ⚠ 「{chat_name}」が見つからないため新規チャットを開始します"
+                      "（次回のために、この実行で作る最初のチャットを手動で『"
+                      f"{chat_name}』と名付けておくと次回から合流できます）。")
+            _new_chat(page)
+            page.goto(GEMINI_URL, wait_until="domcontentloaded")
+            time.sleep(2.0)
 
-        # ★まずジェミニとブランド世界観をすり合わせる（合意を取ってから生成開始）。
-        print("🤝 社長→ジェミニ: ブランド世界観をすり合わせ中…")
-        if _send_prompt(page, brand_brief()):
-            time.sleep(8)   # ジェミニが「了解しました」と返すのを待つ
-            print("   すり合わせ完了。この世界観を全画像で厳守させます。")
+        # ブランド世界観のすり合わせ。新規チャット時は必ず実施。
+        # 既存チャット合流時は文脈に既にあるため、--realign 指定時のみ再共有。
+        if (not joined) or realign:
+            print("🤝 社長→ジェミニ: ブランド世界観をすり合わせ中…")
+            if _send_prompt(page, brand_brief()):
+                time.sleep(8)   # ジェミニが「了解しました」と返すのを待つ
+                print("   すり合わせ完了。この世界観を全画像で厳守させます。")
+        else:
+            print("   （合流先チャットに世界観が共有済みのため、すり合わせは省略。"
+                  "再共有したい場合は --realign を付けて実行）")
 
         for d in post_dirs:
             assets = d / "素材"
@@ -317,6 +357,11 @@ def main():
     ap.add_argument("post_id", nargs="?", default=None, help="投稿ID（省略時は全件）")
     ap.add_argument("--headless", action="store_true", help="画面を表示しない")
     ap.add_argument("--no-build", action="store_true", help="生成後に build/審査をしない")
+    ap.add_argument("--chat", default=CHAT_NAME,
+                    help=f"合流する既存チャット名（既定: {CHAT_NAME}）")
+    ap.add_argument("--new", action="store_true", help="既存チャットに合流せず新規チャットで行う")
+    ap.add_argument("--realign", action="store_true",
+                    help="既存チャット合流時もブランド世界観を再共有する")
     args = ap.parse_args()
 
     root = config.OUTPUT_DIR
@@ -330,7 +375,8 @@ def main():
         return
 
     try:
-        process(dirs, headless=args.headless)
+        process(dirs, headless=args.headless,
+                chat_name=("" if args.new else args.chat), realign=args.realign)
     except ModuleNotFoundError:
         print("Playwrightが未インストールです。次を実行してください:\n"
               "  pip install playwright pyyaml\n  playwright install chromium")

@@ -26,6 +26,13 @@ new_chat_button:
   - 'button[aria-label="New chat"]'
   - 'a[aria-label*="新しいチャット"]'
 
+# サイドバー(過去チャット履歴)を開くメニューボタン
+menu_button:
+  - 'button[aria-label="メインメニュー"]'
+  - 'button[aria-label="Main menu"]'
+  - 'button[aria-label*="メニュー"]'
+  - 'button[aria-label*="menu"]'
+
 # 応答内に生成された画像
 response_image:
   - 'message-content img'
