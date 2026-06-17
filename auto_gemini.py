@@ -164,14 +164,13 @@ def process(post_dirs, headless: bool):
 
     PROFILE_DIR.mkdir(exist_ok=True)
     with sync_playwright() as p:
+        # playwright install したChromiumを使用（Google Chrome本体は不要）。
+        # Chromeプロファイルを使いたい場合は launch_kwargs に channel="chrome" を追加。
         ctx = p.chromium.launch_persistent_context(
             user_data_dir=str(PROFILE_DIR),
             headless=headless,
-            channel="chrome",  # 入っていなければ下のexceptでchromiumに
             viewport={"width": 1280, "height": 900},
-        ) if _has_chrome(p) else p.chromium.launch_persistent_context(
-            user_data_dir=str(PROFILE_DIR), headless=headless,
-            viewport={"width": 1280, "height": 900},
+            args=["--disable-blink-features=AutomationControlled"],
         )
         page = ctx.new_page()
         page.goto(GEMINI_URL, wait_until="domcontentloaded")
@@ -205,14 +204,6 @@ def process(post_dirs, headless: bool):
                 time.sleep(2)
         ctx.close()
         print(f"\n生成完了: {total_made}枚")
-
-
-def _has_chrome(p) -> bool:
-    try:
-        import shutil
-        return any(shutil.which(b) for b in ("google-chrome", "chrome", "chrome.exe")) or True
-    except Exception:
-        return True
 
 
 def main():
