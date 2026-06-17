@@ -29,6 +29,34 @@ RUBRIC = [
     ("clean", "文字・ロゴ無し", "写真内に文字やロゴ・透かしが入っていないか(表紙文字は後で載せる)。", 5),
 ]
 
+# デザイン品質フローの工程ごとの責任者。各責任者が担当する採点項目を持ち、
+# 自分の担当領域の合計が合格率を満たさなければ「その責任者の不合格」となる。
+# → どの責任者(=どの工程)で問題が出たかが一目で分かる。
+DIRECTORS = [
+    ("📷 撮影ディレクター", "写真のリアルさ・画質", ["realistic"]),
+    ("🍳 フードスタイリスト", "シズル感・美味しそうさ", ["appetizing"]),
+    ("🎨 アートディレクター", "世界観・構図の統一", ["mood", "composition"]),
+    ("🔍 校閲ディレクター", "要望一致・文字混入", ["match", "clean"]),
+]
+
+_WEIGHT = {k: w for k, _l, _d, w in RUBRIC}
+_LABEL = {k: l for k, l, _d, _w in RUBRIC}
+
+
+def _director_verdicts(scores: dict, pass_ratio: float) -> list[dict]:
+    """採点結果を責任者ごとに集計し、各責任者の合否・コメントを返す。"""
+    out = []
+    for name, area, keys in DIRECTORS:
+        got = sum(int(scores.get(k, {}).get("score", 0)) for k in keys)
+        full = sum(_WEIGHT[k] for k in keys)
+        passed = full > 0 and got >= full * pass_ratio
+        # 不合格項目のコメントを集約
+        notes = [f"{_LABEL[k]}: {scores.get(k, {}).get('comment', '')}".strip()
+                 for k in keys if int(scores.get(k, {}).get("score", 0)) < _WEIGHT[k] * pass_ratio]
+        out.append({"name": name, "area": area, "keys": keys,
+                    "score": got, "full": full, "passed": passed, "notes": notes})
+    return out
+
 
 @dataclass
 class ReviewResult:
@@ -40,18 +68,30 @@ class ReviewResult:
     requests: list[str] = field(default_factory=list)   # 改善要望
     regenerate_prompt: str = ""                          # 作り直し用プロンプト案
     engine: str = ""                                     # gemini / heuristic
+    directors: list = field(default_factory=list)        # 責任者ごとの合否
+
+    def failed_directors(self) -> list[str]:
+        return [d["name"] for d in self.directors if not d["passed"]]
 
     def report(self, title: str = "") -> str:
         mark = "✅ 合格" if self.passed else "❌ 不合格"
         lines = [
             "==============================",
-            f"  表紙デザイン審査 {(': ' + title) if title else ''}",
+            f"  デザイン品質審査 {(': ' + title) if title else ''}",
             "==============================",
             f"判定: {mark}   総合: {self.total}/100 （合格ライン {self.pass_score}）",
             f"審査エンジン: {self.engine}",
-            "",
-            "【項目別】",
         ]
+        if self.directors:
+            ng = self.failed_directors()
+            lines += ["",
+                      f"責任者別の判定（問題の所在: {('、'.join(ng) if ng else 'なし＝全員OK')}）"]
+            for d in self.directors:
+                dm = "✅" if d["passed"] else "❌"
+                lines.append(f"  {dm} {d['name']}〔{d['area']}〕 {d['score']}/{d['full']}")
+                for n in d["notes"]:
+                    lines.append(f"        - {n}")
+        lines += ["", "【項目別】"]
         for key, label, _desc, weight in RUBRIC:
             s = self.scores.get(key, {})
             lines.append(f"  ・{label}: {s.get('score', '-')}/{weight}  {s.get('comment', '')}")
@@ -162,15 +202,20 @@ def _gemini_review(image_path: Path, recipe: Recipe,
         scores = d.get("scores", {})
         total = sum(int(scores.get(k, {}).get("score", 0)) for k, *_ in RUBRIC)
         ps = _pass_score()
+        verdicts = _director_verdicts(scores, ps / 100)
+        # 改善要望を「どの責任者の指摘か」付きで構成
+        reqs = [f"【{v['name']}】{n}" for v in verdicts if not v["passed"] for n in v["notes"]]
+        reqs += [r for r in d.get("requests", []) if r]
         return ReviewResult(
             passed=total >= ps,
             total=total,
             pass_score=ps,
             scores=scores,
             summary=d.get("summary", ""),
-            requests=d.get("requests", []),
+            requests=reqs,
             regenerate_prompt=d.get("regenerate_prompt", ""),
             engine=f"Gemini Vision ({used_model})",
+            directors=verdicts,
         )
     except Exception:
         return None
@@ -216,16 +261,20 @@ def _heuristic_review(image_path: Path, recipe: Recipe,
         scores["composition"]["score"] = 4
         scores["composition"]["comment"] = f"解像度低 {w}x{h}"
     total = sum(s["score"] for s in scores.values())
+    verdicts = _director_verdicts(scores, ps / 100)
+    reqs = ([] if has_content else ["被写体がはっきり写った写真にしてください。"]) \
+        + ([] if vertical else [f"指定のアスペクト比({aspect})に合う写真にしてください。"]) \
+        + ([] if dark_mood else ["背景を暗くして高級感を出すと世界観に合います。"])
+    reqs = [f"【{v['name']}】{n}" for v in verdicts if not v["passed"] for n in v["notes"]] + reqs
     return ReviewResult(
         passed=total >= ps,
         total=total,
         pass_score=ps,
         scores=scores,
         summary="簡易判定（明るさ・縦横比・解像度）。本格審査はGemini APIキー設定時に有効。",
-        requests=([] if has_content else ["被写体がはっきり写った写真にしてください。"])
-                 + ([] if vertical else [f"指定のアスペクト比({aspect})に合う写真にしてください。"])
-                 + ([] if dark_mood else ["背景を暗くして高級感を出すと世界観に合います。"]),
+        requests=reqs,
         engine="heuristic（APIなし簡易判定）",
+        directors=verdicts,
     )
 
 

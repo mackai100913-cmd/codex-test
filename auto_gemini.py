@@ -217,7 +217,14 @@ def _make_with_review(page, recipe, save_path: Path, name: str,
 
         res = review_image(tmp, recipe, kind=kind, aspect=aspect)
         mark = "✅合格" if res.passed else "❌不合格"
-        print(f"     デザイン責任者: {res.total}/100 {mark}（{res.engine}）")
+        print(f"     品質審査: {res.total}/100 {mark}（{res.engine}）")
+        # 責任者ごとの合否（どの工程の責任者で問題が出たか）
+        for v in res.directors:
+            dm = "✅" if v["passed"] else "❌"
+            print(f"        {dm} {v['name']}〔{v['area']}〕 {v['score']}/{v['full']}")
+        ng = res.failed_directors()
+        if ng:
+            print(f"     ⚠ 問題の所在: {'、'.join(ng)}")
         if res.summary:
             print(f"     講評: {res.summary}")
 
