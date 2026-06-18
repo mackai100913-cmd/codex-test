@@ -70,9 +70,34 @@ def needed_images(post_dir: Path):
     return items
 
 
+def _find_existing(assets: Path, name: str) -> Path | None:
+    for ext in (".png", ".jpg", ".jpeg", ".webp"):
+        p = assets / f"{name}{ext}"
+        if p.exists():
+            return p
+    g = sorted(assets.glob(f"{name}.*"))
+    return g[0] if g else None
+
+
 def _exists(assets: Path, name: str) -> bool:
-    return any((assets / f"{name}{ext}").exists() for ext in (".png", ".jpg", ".jpeg", ".webp")) \
-        or bool(list(assets.glob(f"{name}.*")))
+    return _find_existing(assets, name) is not None
+
+
+# 既存素材として許容する最小サイズ。これ未満は低品質とみなし作り直す。
+MIN_KEEP = 600
+
+
+def _existing_ok(assets: Path, name: str) -> bool:
+    """既存素材が十分な解像度かを判定（小さすぎるサムネイル等は作り直し対象）。"""
+    p = _find_existing(assets, name)
+    if p is None:
+        return False
+    try:
+        from PIL import Image
+        with Image.open(p) as im:
+            return min(im.size) >= MIN_KEEP
+    except Exception:
+        return True   # 開けない場合は判断保留で残す
 
 
 # --- Playwright 操作ヘルパー -------------------------------------------
@@ -347,10 +372,16 @@ def process(post_dirs, headless: bool, chat_name: str = "", realign: bool = Fals
             recipe = load_recipe(d)
             print(f"\n=== {d.name} ===")
 
-            todo = [it for it in needed_images(d) if not _exists(assets, it[0])]
+            todo = []
             for it in needed_images(d):
-                if _exists(assets, it[0]):
-                    print(f"  ✓ {it[0]}: 既にあるためスキップ")
+                name = it[0]
+                if _existing_ok(assets, name):
+                    print(f"  ✓ {name}: 既にあるためスキップ")
+                elif _exists(assets, name):
+                    print(f"  ↻ {name}: 既存が低解像度のため作り直します")
+                    todo.append(it)
+                else:
+                    todo.append(it)
             if not todo:
                 continue
 
