@@ -179,15 +179,27 @@ def _generate_with_retry(client, models: list[str], contents, attempts: int = 3)
 # Gemini ビジョンによる審査
 # ---------------------------------------------------------------------------
 
+_WARNED = False
+
+
+def _warn_once(msg: str) -> None:
+    global _WARNED
+    if not _WARNED:
+        print(msg)
+        _WARNED = True
+
+
 def _gemini_review(image_path: Path, recipe: Recipe,
                    kind: str = "hero", aspect: str = "9:16") -> ReviewResult | None:
     api_key = config.gemini_api_key()
     if not api_key:
+        _warn_once("⚠ GEMINI_API_KEY が未設定のため、Vision審査ではなく簡易判定になります（.env を確認）。")
         return None
     try:
         from google import genai
         from google.genai import types
     except Exception:
+        _warn_once("⚠ google-genai 未導入のため簡易判定になります（pip install google-genai）。")
         return None
 
     dish = f"{recipe.title_top}{recipe.title_main}"
@@ -264,7 +276,9 @@ def _gemini_review(image_path: Path, recipe: Recipe,
             engine=f"Gemini Vision ({used_model})",
             directors=verdicts,
         )
-    except Exception:
+    except Exception as e:  # noqa: BLE001
+        _warn_once(f"⚠ Vision審査の呼び出しに失敗したため簡易判定に切替: {type(e).__name__}: {e}\n"
+                   "   （APIキーが無効/期限切れ、課金未設定、モデル名誤りの可能性。新しいキーを .env に設定してください）")
         return None
 
 

@@ -48,6 +48,9 @@ CHAT_NAME = config.env("GEMINI_CHAT_NAME", "TikTok画像自動化")
 # デザイン責任者の合格ラインに達するまで作り直す最大回数（1回目＋作り直し）
 MAX_ATTEMPTS = 3
 
+# 生成画像とみなす最小サイズ(px)。小さいサムネイル/アイコンを誤取得しないため大きめに。
+MIN_IMG = 480
+
 
 def load_recipe(post_dir: Path):
     import json
@@ -115,7 +118,7 @@ def _send_prompt(page, prompt: str) -> bool:
 
 
 def _candidate_images(page):
-    """応答画像の候補(大きめ)を出現順で返す。"""
+    """応答画像の候補(本体サイズの大きい画像)を (要素, 面積) で返す。"""
     out = []
     seen = set()
     for sel in SELECTORS["response_image"]:
@@ -126,13 +129,13 @@ def _candidate_images(page):
         for el in imgs:
             try:
                 box = el.bounding_box()
-                if not box or box["width"] < 200 or box["height"] < 200:
+                if not box or box["width"] < MIN_IMG or box["height"] < MIN_IMG:
                     continue
                 key = (el.get_attribute("src") or "") + f"{box['x']:.0f},{box['y']:.0f}"
                 if key in seen:
                     continue
                 seen.add(key)
-                out.append(el)
+                out.append((el, box["width"] * box["height"]))
             except Exception:
                 continue
     return out
@@ -163,17 +166,20 @@ def _save_img(page, el, save_path: Path) -> bool:
             return False
 
 
-def _grab_image(page, save_path: Path, baseline: int = 0, timeout_s: int = 120) -> bool:
-    """同じチャット内で、送信前の画像枚数(baseline)より増えた=新しい画像を待って保存。"""
+def _grab_image(page, save_path: Path, baseline: int = 0, timeout_s: int = 150) -> bool:
+    """同じチャット内で、送信前の画像枚数(baseline)より増えた=新しい画像を待って保存。
+    生成画像は本文中で最も大きく表示されるため、候補のうち最大面積のものを採用する。"""
     deadline = time.time() + timeout_s
     while time.time() < deadline:
         cands = _candidate_images(page)
         if len(cands) > baseline:
-            # 生成完了を少し待って(描画途中を避ける)、一番新しい(末尾)を取得
-            time.sleep(2)
+            # 生成完了を待つ(高解像度の描画が終わるまで)
+            time.sleep(4)
             cands = _candidate_images(page)
-            if _save_img(page, cands[-1], save_path):
-                return True
+            if cands:
+                el, _area = max(cands, key=lambda c: c[1])  # 最大面積=生成画像本体
+                if _save_img(page, el, save_path):
+                    return True
         time.sleep(2)
     return False
 
@@ -262,6 +268,11 @@ def _make_with_review(page, recipe, save_path: Path, name: str,
 
         if res.passed:
             print(f"  ✅ {name}: 合格して保存 → {save_path}")
+            return True
+        # API審査が無効(heuristic)のときは、作り直しても同じ判定で無意味なので中断。
+        if res.engine.startswith("heuristic"):
+            print(f"  ⚠ {name}: API審査が無効のため作り直しを中断し保存 → {save_path}")
+            print("     ※ 正しく審査・作り直すには .env に有効な GEMINI_API_KEY が必要です。")
             return True
         if attempt < MAX_ATTEMPTS:
             for r in (res.requests or [])[:4]:
