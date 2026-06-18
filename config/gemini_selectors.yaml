@@ -71,6 +71,15 @@ upload_menu_item:
   - '[role="menuitem"]:has-text("アップロード")'
   - '[role="menuitem"]:has-text("Upload")'
 
+# 画像添付が成功したかの確認に使う「添付チップ/サムネイル」。これが現れたら添付成功とみなす。
+attachment_chip:
+  - 'input[type="file"] ~ * img'
+  - '[data-test-id*="file"], [data-test-id*="attachment"]'
+  - 'div[role="img"]'
+  - 'uploader-file-preview'
+  - 'mat-chip'
+  - 'img[alt*="アップロード"], img[alt*="upload"]'
+
 # モデルの応答テキスト（審査JSONをここから読み取る）。最後の要素を最新応答とみなす。
 response_text:
   - 'message-content.model-response-text'

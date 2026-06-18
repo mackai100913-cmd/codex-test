@@ -82,16 +82,50 @@ def ceo_brief() -> str:
     return "\n".join(lines)
 
 
+def _coerce_score(value) -> tuple[int, str]:
+    """1責任者分のスコア表現を (score, comment) に正規化する。
+
+    モデルの出力ゆれに強くする。次のいずれの形も受け付ける:
+      - {"score": 85, "comment": "..."}（英語キー）
+      - {"点数": 85, "コメント": "..."} / {"点": 85, "所見": "..."}（日本語キー）
+      - 85 / "85"（数値そのもの）
+    """
+    comment = ""
+    raw = value
+    if isinstance(value, dict):
+        for k in ("score", "点数", "点", "score_100", "value"):
+            if k in value:
+                raw = value[k]
+                break
+        else:
+            raw = 0
+        for k in ("comment", "コメント", "所見", "理由", "reason"):
+            if value.get(k):
+                comment = str(value[k])
+                break
+    try:
+        score = int(round(float(raw)))
+    except (TypeError, ValueError):
+        score = 0
+    return max(0, min(100, score)), comment
+
+
 def _director_verdicts(scores: dict, pass_score: int) -> list[dict]:
     """各責任者の100点満点スコアから合否・コメントを構成する。"""
+    scores = scores or {}
     out = []
     for d in DIRECTORS:
-        s = scores.get(d["key"], {})
-        score = int(s.get("score", 0))
+        # キーは英語(photo等)が基本だが、責任者名や領域名で返ることもあるため広く探す。
+        raw = scores.get(d["key"])
+        if raw is None:
+            for alt in (d["name"], d["area"]):
+                if alt in scores:
+                    raw = scores[alt]
+                    break
+        score, comment = _coerce_score(raw if raw is not None else {})
         passed = score >= pass_score
         out.append({"key": d["key"], "name": d["name"], "area": d["area"],
-                    "score": score, "passed": passed,
-                    "comment": s.get("comment", "")})
+                    "score": score, "passed": passed, "comment": comment})
     return out
 
 
@@ -262,9 +296,14 @@ def parse_review_text(text: str, engine: str) -> ReviewResult:
     if "{" in text and "}" in text:
         text = text[text.find("{"): text.rfind("}") + 1]
     d = json.loads(text)
-    scores = d.get("scores", {})
+    scores = d.get("scores") or d.get("評価") or {}
     ps = _pass_score()
     verdicts = _director_verdicts(scores, ps)
+    # "scores"ラッパが無く、責任者キーが直下に並ぶ形にも対応（全0なら直下を再探索）。
+    if not any(v["score"] for v in verdicts):
+        alt = _director_verdicts(d, ps)
+        if any(v["score"] for v in alt):
+            verdicts = alt
     total = round(sum(v["score"] for v in verdicts) / len(verdicts)) if verdicts else 0
     # 改善要望を「どの責任者の指摘か」付きで構成
     reqs = [f"【{v['name']}】{v['comment']}" for v in verdicts if not v["passed"] and v["comment"]]

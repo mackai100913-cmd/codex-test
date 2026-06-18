@@ -140,15 +140,22 @@ def _send_prompt(page, prompt: str) -> bool:
     if not box:
         print("  ⚠ 入力欄が見つかりません（gemini_selectors.yaml の input_box を更新してください）")
         return False
-    box.click()
-    page.keyboard.type(prompt, delay=8)
-    time.sleep(0.5)
-    btn = _first(page, SELECTORS["send_button"], timeout=3000)
-    if btn:
-        btn.click()
-    else:
-        page.keyboard.press("Enter")
-    return True
+    try:
+        box.click()
+        page.keyboard.type(prompt, delay=8)
+        time.sleep(0.5)
+        btn = _first(page, SELECTORS["send_button"], timeout=3000)
+        if btn:
+            try:
+                btn.click()
+            except Exception:
+                page.keyboard.press("Enter")   # ボタンがDOMから外れた等はEnterで代替
+        else:
+            page.keyboard.press("Enter")
+        return True
+    except Exception as e:  # noqa: BLE001
+        print(f"  ⚠ 送信に失敗しました（{type(e).__name__}）。スキップします。")
+        return False
 
 
 def _candidate_images(page):
@@ -278,35 +285,70 @@ def _count_responses(page) -> int:
     return len(_all_response_texts(page))
 
 
-def _upload_image(page, path: Path) -> bool:
-    """審査対象の画像をGeminiの入力欄に添付する。
-    ①隠しfile input に直接セット → ②アップロードボタン経由のfile chooser、の順で試す。"""
-    # ① 隠し input[type=file] に直接セット（ダイアログ不要で最も確実）
+def _has_attachment(page, timeout_s: int = 8) -> bool:
+    """画像の添付チップ/サムネイルが現れる＝添付成功、を待って確認する。"""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        for sel in SELECTORS.get("attachment_chip", []):
+            try:
+                if page.query_selector(sel):
+                    return True
+            except Exception:
+                continue
+        time.sleep(0.6)
+    return False
+
+
+def _try_file_input(page, path: Path) -> bool:
+    """隠し input[type=file] に直接セットする（毎回取り直す）。"""
     for sel in SELECTORS.get("file_input", []):
         try:
             inp = page.query_selector(sel)
             if inp:
                 inp.set_input_files(str(path))
-                time.sleep(3)   # サムネイル化（アップロード完了）を待つ
                 return True
         except Exception:
             continue
-    # ② ＋/クリップ等のボタンを押してネイティブのファイル選択を開く
+    return False
+
+
+def _try_file_chooser(page, path: Path) -> bool:
+    """＋/添付ボタンを押してネイティブのファイル選択を開き、セットする。"""
     try:
         with page.expect_file_chooser(timeout=8000) as fc_info:
             btn = _first(page, SELECTORS.get("upload_button", []), timeout=6000)
             if not btn:
                 return False
             btn.click()
-            # ＋でメニューが開くタイプは、サブ項目もクリック
             item = _first(page, SELECTORS.get("upload_menu_item", []), timeout=2500)
             if item:
                 item.click()
         fc_info.value.set_files(str(path))
-        time.sleep(3)
         return True
     except Exception:
         return False
+
+
+def _upload_image(page, path: Path) -> bool:
+    """審査対象の画像を入力欄へ添付する。複数方式を試し、添付チップで成功を検証。
+    検証できない時もセット自体が成功していれば True（チップ未検出でも進む）。"""
+    for attempt in range(2):
+        # ① 隠しfile input → ② ボタン経由file chooser の順で試す
+        set_ok = _try_file_input(page, path) or _try_file_chooser(page, path)
+        if set_ok:
+            if _has_attachment(page):
+                time.sleep(1.5)
+                return True
+            # チップを検出できなくても、セットは通っている可能性が高い→送信に進む
+            if attempt == 0:
+                time.sleep(2)
+                if _has_attachment(page, timeout_s=4):
+                    return True
+            else:
+                time.sleep(1.5)
+                return True
+        time.sleep(1.5)
+    return False
 
 
 def _grab_response_text(page, baseline: int, timeout_s: int = 150) -> str | None:
@@ -347,11 +389,26 @@ def _browser_review(page, image_path: Path, recipe, kind: str, aspect: str):
     if not text:
         print("     ⚠ ブラウザ審査: 応答を取得できませんでした（response_text セレクタを確認）。")
         return None
+    # 診断用に生応答を保存（点数が0等の不整合をあとで原因究明できるように）。
     try:
-        return parse_review_text(text, "Gemini Vision (ブラウザ審査)")
+        dbg = config.OUTPUT_DIR / ".review_debug"
+        dbg.mkdir(parents=True, exist_ok=True)
+        (dbg / f"{image_path.parent.parent.name}_{image_path.stem}.txt").write_text(
+            text, encoding="utf-8")
+    except Exception:
+        pass
+    try:
+        res = parse_review_text(text, "Gemini Vision (ブラウザ審査)")
     except Exception as e:  # noqa: BLE001
         print(f"     ⚠ ブラウザ審査: 応答をJSON解釈できませんでした（{type(e).__name__}）。簡易判定に切替。")
+        print(f"        応答プレビュー: {text[:200].replace(chr(10), ' ')}")
         return None
+    # 全責任者0点はパース不整合の疑い → 生応答プレビューを出して原因を可視化。
+    if not any(v["score"] for v in res.directors):
+        print("     ⚠ ブラウザ審査: スコアが全0でした（応答の形が想定と違う可能性）。")
+        print(f"        応答プレビュー: {text[:200].replace(chr(10), ' ')}")
+        print(f"        生応答を保存: {config.OUTPUT_DIR / '.review_debug'}")
+    return res
 
 
 def make_browser_reviewer(ctx):
