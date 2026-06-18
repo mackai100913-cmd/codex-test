@@ -189,19 +189,11 @@ def _warn_once(msg: str) -> None:
         _WARNED = True
 
 
-def _gemini_review(image_path: Path, recipe: Recipe,
-                   kind: str = "hero", aspect: str = "9:16") -> ReviewResult | None:
-    api_key = config.gemini_api_key()
-    if not api_key:
-        _warn_once("⚠ GEMINI_API_KEY が未設定のため、Vision審査ではなく簡易判定になります（.env を確認）。")
-        return None
-    try:
-        from google import genai
-        from google.genai import types
-    except Exception:
-        _warn_once("⚠ google-genai 未導入のため簡易判定になります（pip install google-genai）。")
-        return None
+def build_review_prompt(recipe: Recipe, kind: str = "hero", aspect: str = "9:16") -> str:
+    """各責任者の厳格ルーブリックを盛り込んだ審査プロンプトを構築する。
 
+    API審査(_gemini_review)とブラウザ審査(auto_gemini)で共用する。
+    """
     dish = f"{recipe.title_top}{recipe.title_main}"
     if kind == "step":
         subject = (f"この画像は料理「{recipe.title_main}」の【調理工程】写真のはずです。"
@@ -254,6 +246,55 @@ def _gemini_review(image_path: Path, recipe: Recipe,
   "regenerate_prompt": "改善のためGeminiアプリへ貼る画像生成プロンプト(日本語・具体的)"
 }}
 """
+    return prompt
+
+
+def parse_review_text(text: str, engine: str) -> ReviewResult:
+    """審査の応答テキスト(JSON)を ReviewResult に変換する。
+
+    API応答・ブラウザ応答の双方で共用。前後にプロンプト文やマークダウン記号が
+    混ざっていても、最初の '{' から最後の '}' までを取り出してパースする。
+    JSONとして解釈できない場合は例外を送出する（呼び出し側でフォールバック）。
+    """
+    text = (text or "").strip()
+    if "```" in text:
+        text = text.replace("```json", "```").strip("`")
+    if "{" in text and "}" in text:
+        text = text[text.find("{"): text.rfind("}") + 1]
+    d = json.loads(text)
+    scores = d.get("scores", {})
+    ps = _pass_score()
+    verdicts = _director_verdicts(scores, ps)
+    total = round(sum(v["score"] for v in verdicts) / len(verdicts)) if verdicts else 0
+    # 改善要望を「どの責任者の指摘か」付きで構成
+    reqs = [f"【{v['name']}】{v['comment']}" for v in verdicts if not v["passed"] and v["comment"]]
+    return ReviewResult(
+        passed=all(v["passed"] for v in verdicts),
+        total=total,
+        pass_score=ps,
+        scores=scores,
+        summary=d.get("summary", ""),
+        requests=reqs,
+        regenerate_prompt=d.get("regenerate_prompt", ""),
+        engine=engine,
+        directors=verdicts,
+    )
+
+
+def _gemini_review(image_path: Path, recipe: Recipe,
+                   kind: str = "hero", aspect: str = "9:16") -> ReviewResult | None:
+    api_key = config.gemini_api_key()
+    if not api_key:
+        _warn_once("⚠ GEMINI_API_KEY が未設定のため、API審査は使えません（ブラウザ審査か簡易判定になります）。")
+        return None
+    try:
+        from google import genai
+        from google.genai import types
+    except Exception:
+        _warn_once("⚠ google-genai 未導入のため簡易判定になります（pip install google-genai）。")
+        return None
+
+    prompt = build_review_prompt(recipe, kind, aspect)
     try:
         data = image_path.read_bytes()
         mime = "image/png" if image_path.suffix.lower() == ".png" else "image/jpeg"
@@ -262,28 +303,7 @@ def _gemini_review(image_path: Path, recipe: Recipe,
             client, _review_models(),
             [types.Part.from_bytes(data=data, mime_type=mime), prompt],
         )
-        text = (r.text or "").strip()
-        if text.startswith("```"):
-            text = text.strip("`")
-            text = text[text.find("{"): text.rfind("}") + 1]
-        d = json.loads(text)
-        scores = d.get("scores", {})
-        ps = _pass_score()
-        verdicts = _director_verdicts(scores, ps)
-        total = round(sum(v["score"] for v in verdicts) / len(verdicts)) if verdicts else 0
-        # 改善要望を「どの責任者の指摘か」付きで構成
-        reqs = [f"【{v['name']}】{v['comment']}" for v in verdicts if not v["passed"] and v["comment"]]
-        return ReviewResult(
-            passed=all(v["passed"] for v in verdicts),
-            total=total,
-            pass_score=ps,
-            scores=scores,
-            summary=d.get("summary", ""),
-            requests=reqs,
-            regenerate_prompt=d.get("regenerate_prompt", ""),
-            engine=f"Gemini Vision ({used_model})",
-            directors=verdicts,
-        )
+        return parse_review_text(r.text or "", f"Gemini Vision ({used_model})")
     except Exception as e:  # noqa: BLE001
         _warn_once(f"⚠ Vision審査の呼び出しに失敗したため簡易判定に切替: {type(e).__name__}: {e}\n"
                    "   （APIキーが無効/期限切れ、課金未設定、モデル名誤りの可能性。新しいキーを .env に設定してください）")

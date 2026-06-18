@@ -46,3 +46,36 @@ response_image:
 logged_in_marker:
   - 'div.ql-editor[contenteditable="true"]'
   - 'rich-textarea'
+
+# 画像をアップロードするための隠しファイル入力（審査でGeminiに画像を見せる用）。
+# まずこの input[type=file] に直接ファイルをセットする方式を最優先で試す。
+file_input:
+  - 'input[type="file"]'
+
+# 「＋」やクリップ等のアップロードを開くボタン（file_inputが無い時のフォールバック）。
+# クリックするとOS/ブラウザのファイル選択(file chooser)が開く想定。
+upload_button:
+  - 'button[aria-label="ファイルをアップロード"]'
+  - 'button[aria-label="Upload file"]'
+  - 'button[aria-label*="アップロード"]'
+  - 'button[aria-label*="upload"]'
+  - 'button[aria-label="ファイルを追加"]'
+  - 'button[aria-label*="Add files"]'
+  - 'button[aria-label*="添付"]'
+
+# アップロードのサブメニュー項目（＋ボタンでメニューが開くタイプのUI用）。
+upload_menu_item:
+  - 'button:has-text("ファイルをアップロード")'
+  - 'button:has-text("アップロード")'
+  - 'button:has-text("Upload files")'
+  - '[role="menuitem"]:has-text("アップロード")'
+  - '[role="menuitem"]:has-text("Upload")'
+
+# モデルの応答テキスト（審査JSONをここから読み取る）。最後の要素を最新応答とみなす。
+response_text:
+  - 'message-content.model-response-text'
+  - 'model-response message-content'
+  - 'model-response .markdown'
+  - 'div.response-container .markdown'
+  - 'model-response'
+  - 'message-content'

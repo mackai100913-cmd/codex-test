@@ -19,6 +19,15 @@
   python auto_gemini.py --headless     # 画面非表示（初回ログイン後）
 初回はブラウザが開くので、Geminiにログインしてください（プロフィールは保存され、次回以降は自動）。
 生成後は自動で  python run.py --build  まで実行し、品質審査まで行います。
+
+== 厳密審査（APIキー不要のブラウザ審査）==
+  APIキー(AIza)が使えない環境向けに、ログイン済みブラウザのGeminiへ生成画像を
+  直接アップロードして各責任者ルーブリックで採点させる「ブラウザ審査」を内蔵。
+    python auto_gemini.py --review browser   # ブラウザ審査を強制
+    python auto_gemini.py --review auto       # 既定。キーがあればAPI・無ければブラウザ
+    python auto_gemini.py --review api        # API審査(要GEMINI_API_KEY)
+    python auto_gemini.py --review off        # 審査せず1発で採用
+  ブラウザ審査は生成チャットを汚さないよう専用タブで実施する。
 """
 
 from __future__ import annotations
@@ -240,6 +249,133 @@ def _open_chat(page, title: str) -> bool:
         return False
 
 
+# --- ブラウザ審査（APIキー不要のVision審査） ---------------------------
+# AQ.形式キーのGoogle側不具合を回避するため、ログイン済みブラウザのGeminiに
+# 画像を直接アップロードして採点させる。生成チャットを汚さないよう専用タブで実施。
+
+def _all_response_texts(page) -> list[str]:
+    """モデル応答のテキストを古い順に返す（最後が最新応答）。"""
+    for sel in SELECTORS.get("response_text", []):
+        try:
+            els = page.query_selector_all(sel)
+        except Exception:
+            els = []
+        if els:
+            out = []
+            for el in els:
+                try:
+                    t = (el.inner_text() or "").strip()
+                except Exception:
+                    t = ""
+                if t:
+                    out.append(t)
+            if out:
+                return out
+    return []
+
+
+def _count_responses(page) -> int:
+    return len(_all_response_texts(page))
+
+
+def _upload_image(page, path: Path) -> bool:
+    """審査対象の画像をGeminiの入力欄に添付する。
+    ①隠しfile input に直接セット → ②アップロードボタン経由のfile chooser、の順で試す。"""
+    # ① 隠し input[type=file] に直接セット（ダイアログ不要で最も確実）
+    for sel in SELECTORS.get("file_input", []):
+        try:
+            inp = page.query_selector(sel)
+            if inp:
+                inp.set_input_files(str(path))
+                time.sleep(3)   # サムネイル化（アップロード完了）を待つ
+                return True
+        except Exception:
+            continue
+    # ② ＋/クリップ等のボタンを押してネイティブのファイル選択を開く
+    try:
+        with page.expect_file_chooser(timeout=8000) as fc_info:
+            btn = _first(page, SELECTORS.get("upload_button", []), timeout=6000)
+            if not btn:
+                return False
+            btn.click()
+            # ＋でメニューが開くタイプは、サブ項目もクリック
+            item = _first(page, SELECTORS.get("upload_menu_item", []), timeout=2500)
+            if item:
+                item.click()
+        fc_info.value.set_files(str(path))
+        time.sleep(3)
+        return True
+    except Exception:
+        return False
+
+
+def _grab_response_text(page, baseline: int, timeout_s: int = 150) -> str | None:
+    """送信後、応答数がbaselineより増えるのを待ち、最新応答の文字列が安定したら返す。"""
+    deadline = time.time() + timeout_s
+    last = ""
+    stable = 0
+    while time.time() < deadline:
+        texts = _all_response_texts(page)
+        if len(texts) > baseline and texts[-1]:
+            cur = texts[-1]
+            if cur == last and len(cur) > 20:
+                stable += 1
+                if stable >= 2:   # 約4秒変化なし＝生成完了とみなす
+                    return cur
+            else:
+                stable = 0
+                last = cur
+        time.sleep(2)
+    return last or None
+
+
+def _browser_review(page, image_path: Path, recipe, kind: str, aspect: str):
+    """ログイン済みブラウザのGeminiに画像を見せて、厳格ルーブリックで採点させる。
+    成功すれば ReviewResult、失敗すれば None（呼び出し側でフォールバック）。"""
+    from src.design_director import build_review_prompt, parse_review_text
+
+    prompt = build_review_prompt(recipe, kind, aspect)
+    baseline = _count_responses(page)
+    if not _upload_image(page, image_path):
+        print("     ⚠ ブラウザ審査: 画像を添付できませんでした"
+              "（config/gemini_selectors.yaml の file_input / upload_button を確認）。")
+        return None
+    if not _send_prompt(page, prompt):
+        print("     ⚠ ブラウザ審査: 審査プロンプトを送信できませんでした。")
+        return None
+    text = _grab_response_text(page, baseline)
+    if not text:
+        print("     ⚠ ブラウザ審査: 応答を取得できませんでした（response_text セレクタを確認）。")
+        return None
+    try:
+        return parse_review_text(text, "Gemini Vision (ブラウザ審査)")
+    except Exception as e:  # noqa: BLE001
+        print(f"     ⚠ ブラウザ審査: 応答をJSON解釈できませんでした（{type(e).__name__}）。簡易判定に切替。")
+        return None
+
+
+def make_browser_reviewer(ctx):
+    """ブラウザ審査用の専用タブを遅延生成し、reviewer関数を返す。
+    ブラウザ審査に失敗した画像は review_image（API→簡易判定）にフォールバックする。"""
+    from src.design_director import review_image
+
+    state = {"page": None}
+
+    def reviewer(image_path: Path, recipe, kind: str, aspect: str):
+        rp = state["page"]
+        if rp is None:
+            rp = ctx.new_page()
+            rp.goto(GEMINI_URL, wait_until="domcontentloaded")
+            time.sleep(2)
+            _wait_logged_in(rp)   # ログインは生成タブと共有（同一プロファイル）
+            state["page"] = rp
+            print("   🔍 審査用タブを起動しました（APIキー不要のブラウザ審査）。")
+        res = _browser_review(rp, image_path, recipe, kind, aspect)
+        return res or review_image(image_path, recipe, kind, aspect)
+
+    return reviewer
+
+
 # --- デザイン責任者による品質チェック＋作り直しループ -------------------
 
 def _retry_prompt(orig_prompt: str, result) -> str:
@@ -254,9 +390,14 @@ def _retry_prompt(orig_prompt: str, result) -> str:
 
 
 def _make_with_review(page, recipe, save_path: Path, name: str,
-                      prompt: str, kind: str, aspect: str) -> bool:
-    """画像を生成→デザイン責任者が審査→不合格なら作り直し。合格 or 最高得点を採用。"""
-    from src.design_director import review_image
+                      prompt: str, kind: str, aspect: str, reviewer=None) -> bool:
+    """画像を生成→デザイン責任者が審査→不合格なら作り直し。合格 or 最高得点を採用。
+
+    reviewer(image_path, recipe, kind, aspect) -> ReviewResult。
+    未指定時は review_image（API→簡易判定）を使う。
+    """
+    if reviewer is None:
+        from src.design_director import review_image as reviewer
 
     best_score = -1
     cur_prompt = prompt
@@ -271,7 +412,7 @@ def _make_with_review(page, recipe, save_path: Path, name: str,
             print(f"  ⚠ {name}: 画像を自動取得できませんでした。手動で {save_path} に置いてください。")
             return best_score >= 0
 
-        res = review_image(tmp, recipe, kind=kind, aspect=aspect)
+        res = reviewer(tmp, recipe, kind=kind, aspect=aspect)
         mark = "✅合格" if res.passed else "❌不合格"
         print(f"     品質審査: 平均{res.total}/100 {mark}（各責任者の合格ライン{res.pass_score}・{res.engine}）")
         # 責任者ごとの合否（各100点満点。どの責任者で問題が出たか）
@@ -311,7 +452,15 @@ def _make_with_review(page, recipe, save_path: Path, name: str,
 
 # --- メイン処理 --------------------------------------------------------
 
-def process(post_dirs, headless: bool, chat_name: str = "", realign: bool = False):
+def _no_reviewer(image_path, recipe, kind, aspect):
+    """--review off 用。審査せず即合格扱いにする。"""
+    from src.design_director import ReviewResult, _pass_score
+    return ReviewResult(passed=True, total=100, pass_score=_pass_score(),
+                        summary="審査スキップ（--review off）", engine="off（審査なし）")
+
+
+def process(post_dirs, headless: bool, chat_name: str = "", realign: bool = False,
+            review_mode: str = "auto"):
     from playwright.sync_api import sync_playwright
 
     PROFILE_DIR.mkdir(exist_ok=True)
@@ -332,6 +481,20 @@ def process(post_dirs, headless: bool, chat_name: str = "", realign: bool = Fals
             return
 
         total_made = 0
+
+        # 審査エンジンを決定（auto: APIキーがあればAPI、無ければブラウザ審査）。
+        mode = review_mode
+        if mode == "auto":
+            mode = "api" if config.gemini_api_key() else "browser"
+        if mode == "api":
+            from src.design_director import review_image as reviewer
+            print("🔍 審査エンジン: API（GEMINI_API_KEY を使用）")
+        elif mode == "off":
+            reviewer = _no_reviewer
+            print("🔍 審査エンジン: なし（--review off）")
+        else:
+            reviewer = make_browser_reviewer(ctx)
+            print("🔍 審査エンジン: ブラウザ審査（APIキー不要・Geminiに画像を直接見せて採点）")
 
         # 社長(このシステム)が、会長(あなた)のビジョンを翻訳した
         # デザインの目的と意図を、各責任者へ共有してから着手する。
@@ -387,7 +550,7 @@ def process(post_dirs, headless: bool, chat_name: str = "", realign: bool = Fals
 
             for name, prompt, kind, aspect in todo:
                 if _make_with_review(page, recipe, assets / f"{name}.png",
-                                     name, prompt, kind, aspect):
+                                     name, prompt, kind, aspect, reviewer=reviewer):
                     total_made += 1
                 time.sleep(3)   # 次の入力まで少し待つ
         ctx.close()
@@ -404,6 +567,9 @@ def main():
     ap.add_argument("--new", action="store_true", help="既存チャットに合流せず新規チャットで行う")
     ap.add_argument("--realign", action="store_true",
                     help="既存チャット合流時もブランド世界観を再共有する")
+    ap.add_argument("--review", choices=["auto", "browser", "api", "off"], default="auto",
+                    help="審査エンジン: auto(既定/キーがあればAPI・無ければブラウザ) / "
+                         "browser(APIキー不要でGeminiに画像を見せて採点) / api / off")
     args = ap.parse_args()
 
     root = config.OUTPUT_DIR
@@ -418,7 +584,8 @@ def main():
 
     try:
         process(dirs, headless=args.headless,
-                chat_name=("" if args.new else args.chat), realign=args.realign)
+                chat_name=("" if args.new else args.chat), realign=args.realign,
+                review_mode=args.review)
     except ModuleNotFoundError:
         print("Playwrightが未インストールです。次を実行してください:\n"
               "  pip install playwright pyyaml\n  playwright install chromium")
