@@ -109,6 +109,8 @@ def main() -> None:
                         help="素材フォルダの画像から再合成（投稿IDを指定可）")
     parser.add_argument("--review", nargs="?", const="__all__", default=None,
                         help="デザイン責任者が素材のメイン写真を審査（投稿IDを指定可）")
+    parser.add_argument("--fresh", action="store_true",
+                        help="生成前に output 内の既存フォルダ・ファイルを全削除して作り直す")
     args = parser.parse_args()
 
     if args.review is not None:
@@ -118,6 +120,14 @@ def main() -> None:
     if args.build is not None:
         _build(None if args.build == "__all__" else args.build)
         return
+
+    if args.fresh:
+        import shutil
+        root = config.OUTPUT_DIR
+        if root.exists():
+            shutil.rmtree(root)
+            print(f"🧹 既存の出力を全削除しました: {root}")
+        root.mkdir(parents=True, exist_ok=True)
 
     target = date.fromisoformat(args.date) if args.date else None
     run(n=args.count, target_date=target)
