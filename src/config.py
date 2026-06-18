@@ -45,6 +45,18 @@ def gemini_api_key() -> str | None:
     return env("GEMINI_API_KEY") or None
 
 
+def usable_gemini_api_key() -> str | None:
+    """API審査に実際に使えるキーだけを返す。
+
+    「AQ.」形式のキーはGoogle側の不具合で 401 ACCESS_TOKEN_TYPE_UNSUPPORTED を返す
+    ため、設定されていても使用不可とみなす（AIza形式のみ有効）。
+    """
+    key = gemini_api_key()
+    if not key or key.startswith("AQ."):
+        return None
+    return key
+
+
 def image_model() -> str:
     return env("GEMINI_IMAGE_MODEL", "gemini-3-pro-image-preview")
 

@@ -528,10 +528,12 @@ def _make_with_review(page, recipe, save_path: Path, name: str,
         if res.passed:
             print(f"  ✅ {name}: 合格して保存 → {save_path}")
             return True
-        # API審査が無効(heuristic)のときは、作り直しても同じ判定で無意味なので中断。
+        # 簡易判定(heuristic)のときは、作り直しても同じ判定で無意味なので中断。
+        # heuristicに落ちる=ブラウザ審査もAPI審査も使えなかった、という意味。
         if res.engine.startswith("heuristic"):
-            print(f"  ⚠ {name}: API審査が無効のため作り直しを中断し保存 → {save_path}")
-            print("     ※ 正しく審査・作り直すには .env に有効な GEMINI_API_KEY が必要です。")
+            print(f"  ⚠ {name}: 本格審査が使えず簡易判定のため作り直しを中断し保存 → {save_path}")
+            print("     ※ 厳密審査するには『--review browser』でブラウザ審査を使うか、"
+                  "有効なAIza形式の GEMINI_API_KEY を設定してください。")
             return True
         if attempt < MAX_ATTEMPTS:
             for r in (res.requests or [])[:4]:
@@ -575,10 +577,14 @@ def process(post_dirs, headless: bool, chat_name: str = "", realign: bool = Fals
 
         total_made = 0
 
-        # 審査エンジンを決定（auto: APIキーがあればAPI、無ければブラウザ審査）。
+        # 審査エンジンを決定（auto: 使えるAPIキーがあればAPI、無ければブラウザ審査）。
+        # AQ.形式キーはGoogle側不具合で401になるため usable_gemini_api_key() が除外する。
         mode = review_mode
         if mode == "auto":
-            mode = "api" if config.gemini_api_key() else "browser"
+            mode = "api" if config.usable_gemini_api_key() else "browser"
+        if mode == "api" and not config.usable_gemini_api_key():
+            print("⚠ 指定のAPIキーは使用できません（未設定かAQ.形式）。ブラウザ審査に切替えます。")
+            mode = "browser"
         if mode == "api":
             from src.design_director import review_image as reviewer
             print("🔍 審査エンジン: API（GEMINI_API_KEY を使用）")

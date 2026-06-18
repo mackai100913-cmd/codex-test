@@ -322,9 +322,13 @@ def parse_review_text(text: str, engine: str) -> ReviewResult:
 
 def _gemini_review(image_path: Path, recipe: Recipe,
                    kind: str = "hero", aspect: str = "9:16") -> ReviewResult | None:
-    api_key = config.gemini_api_key()
+    api_key = config.usable_gemini_api_key()
     if not api_key:
-        _warn_once("⚠ GEMINI_API_KEY が未設定のため、API審査は使えません（ブラウザ審査か簡易判定になります）。")
+        if (config.gemini_api_key() or "").startswith("AQ."):
+            _warn_once("⚠ AQ.形式のキーはGoogle側の不具合でAPI審査に使えません。"
+                       "API審査をスキップします（ブラウザ審査か簡易判定になります）。")
+        else:
+            _warn_once("⚠ GEMINI_API_KEY が未設定のため、API審査は使えません（ブラウザ審査か簡易判定になります）。")
         return None
     try:
         from google import genai
