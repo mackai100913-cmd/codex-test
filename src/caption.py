@@ -38,7 +38,8 @@ def build_caption(recipe: Recipe) -> str:
         lines.append(f"＋ひと工夫: {recipe.extra_tip}")
         lines.append("")
 
-    lines.append("作ったら「保存」して、ぜひ作ってみてね📌")
+    lines.append("📌 保存して、今夜のごはんにどうぞ。")
+    lines.append("作ってみた感想は、ぜひコメントで教えてね🥢")
     lines.append("")
     lines.append(" ".join(recipe.hashtags))
 
