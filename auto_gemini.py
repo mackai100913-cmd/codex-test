@@ -28,6 +28,12 @@
     python auto_gemini.py --review api        # API審査(要GEMINI_API_KEY)
     python auto_gemini.py --review off        # 審査せず1発で採用
   ブラウザ審査は生成チャットを汚さないよう専用タブで実施する。
+  審査も固定の専用チャット(既定「TikTok画像審査」)に合流し、会長の指摘や過去の
+  審査文脈(ナレッジ)が蓄積して意図が伝わりやすくなる:
+    python auto_gemini.py --review browser --review-chat "TikTok画像審査"
+    python auto_gemini.py --review browser --review-new   # 合流せず新規チャットで
+  初回はそのチャットが無いので新規作成される。次回から合流できるよう、作られた
+  審査チャットを手動で「TikTok画像審査」と名付けておく。
 """
 
 from __future__ import annotations
@@ -52,6 +58,10 @@ SELECTORS = yaml.safe_load((config.CONFIG_DIR / "gemini_selectors.yaml").read_te
 # 既定で合流するジェミニの既存チャット名（会長が用意した共通チャット）。
 # 環境変数 GEMINI_CHAT_NAME か CLI の --chat で上書き可能。
 CHAT_NAME = config.env("GEMINI_CHAT_NAME", "TikTok画像自動化")
+
+# 審査を固定するチャット名。ここに会長の指摘・過去の審査文脈(ナレッジ)が蓄積する。
+# 環境変数 GEMINI_REVIEW_CHAT_NAME か CLI の --review-chat で上書き可能。
+REVIEW_CHAT_NAME = config.env("GEMINI_REVIEW_CHAT_NAME", "TikTok画像審査")
 
 
 # デザイン責任者の合格ラインに達するまで作り直す最大回数（1回目＋作り直し）
@@ -411,10 +421,14 @@ def _browser_review(page, image_path: Path, recipe, kind: str, aspect: str):
     return res
 
 
-def make_browser_reviewer(ctx):
+def make_browser_reviewer(ctx, chat_name: str = "", realign: bool = False):
     """ブラウザ審査用の専用タブを遅延生成し、reviewer関数を返す。
-    ブラウザ審査に失敗した画像は review_image（API→簡易判定）にフォールバックする。"""
-    from src.design_director import review_image
+
+    chat_name を指定すると、審査もその固定チャットに合流する。これにより会長の
+    指摘・過去の審査文脈（ナレッジ）が同じチャットに蓄積し、意図が伝わりやすくなる。
+    ブラウザ審査に失敗した画像は review_image（API→簡易判定）にフォールバックする。
+    """
+    from src.design_director import ceo_brief, review_image
 
     state = {"page": None}
 
@@ -427,6 +441,28 @@ def make_browser_reviewer(ctx):
             _wait_logged_in(rp)   # ログインは生成タブと共有（同一プロファイル）
             state["page"] = rp
             print("   🔍 審査用タブを起動しました（APIキー不要のブラウザ審査）。")
+            # 審査も固定チャットに合流し、過去の文脈・指摘を引き継ぐ。
+            joined = False
+            if chat_name:
+                print(f"   💬 審査チャット「{chat_name}」に合流を試みます…")
+                joined = _open_chat(rp, chat_name)
+            if joined:
+                print(f"      ✅ 「{chat_name}」に合流。過去の審査ナレッジを引き継ぎます。")
+                if realign:
+                    print("      🤝 審査の意図(デザイン目的)を再共有中…")
+                    if _send_prompt(rp, ceo_brief()):
+                        time.sleep(6)
+            else:
+                if chat_name:
+                    print(f"      ⚠ 「{chat_name}」が見つからないため新規チャットで開始します"
+                          f"（このチャットを手動で『{chat_name}』と名付けると次回から合流できます）。")
+                _new_chat(rp)
+                rp.goto(GEMINI_URL, wait_until="domcontentloaded")
+                time.sleep(2)
+                # 新規審査チャットには、まず審査の意図(デザイン目的)を共有して土台を作る。
+                print("      🤝 審査チャットにデザイン意図を共有中…")
+                if _send_prompt(rp, ceo_brief()):
+                    time.sleep(6)
         res = _browser_review(rp, image_path, recipe, kind, aspect)
         return res or review_image(image_path, recipe, kind, aspect)
 
@@ -517,7 +553,7 @@ def _no_reviewer(image_path, recipe, kind, aspect):
 
 
 def process(post_dirs, headless: bool, chat_name: str = "", realign: bool = False,
-            review_mode: str = "auto"):
+            review_mode: str = "auto", review_chat: str = ""):
     from playwright.sync_api import sync_playwright
 
     PROFILE_DIR.mkdir(exist_ok=True)
@@ -550,8 +586,9 @@ def process(post_dirs, headless: bool, chat_name: str = "", realign: bool = Fals
             reviewer = _no_reviewer
             print("🔍 審査エンジン: なし（--review off）")
         else:
-            reviewer = make_browser_reviewer(ctx)
-            print("🔍 審査エンジン: ブラウザ審査（APIキー不要・Geminiに画像を直接見せて採点）")
+            reviewer = make_browser_reviewer(ctx, chat_name=review_chat, realign=realign)
+            print("🔍 審査エンジン: ブラウザ審査（APIキー不要・Geminiに画像を直接見せて採点）"
+                  + (f"／審査チャット「{review_chat}」に固定" if review_chat else ""))
 
         # 社長(このシステム)が、会長(あなた)のビジョンを翻訳した
         # デザインの目的と意図を、各責任者へ共有してから着手する。
@@ -627,6 +664,11 @@ def main():
     ap.add_argument("--review", choices=["auto", "browser", "api", "off"], default="auto",
                     help="審査エンジン: auto(既定/キーがあればAPI・無ければブラウザ) / "
                          "browser(APIキー不要でGeminiに画像を見せて採点) / api / off")
+    ap.add_argument("--review-chat", default=REVIEW_CHAT_NAME,
+                    help=f"審査を固定する専用チャット名（既定: {REVIEW_CHAT_NAME}）。"
+                         "ここに審査ナレッジが蓄積する")
+    ap.add_argument("--review-new", action="store_true",
+                    help="審査を固定チャットに合流せず新規チャットで行う")
     args = ap.parse_args()
 
     root = config.OUTPUT_DIR
@@ -642,7 +684,8 @@ def main():
     try:
         process(dirs, headless=args.headless,
                 chat_name=("" if args.new else args.chat), realign=args.realign,
-                review_mode=args.review)
+                review_mode=args.review,
+                review_chat=("" if args.review_new else args.review_chat))
     except ModuleNotFoundError:
         print("Playwrightが未インストールです。次を実行してください:\n"
               "  pip install playwright pyyaml\n  playwright install chromium")
