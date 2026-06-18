@@ -334,6 +334,36 @@ def _check(draw, x, y, size, color="#3DC06C"):
 
 # --- 表紙の合成 -----------------------------------------------------------
 
+def _cover_badge(img, draw, y, recipe, cfg):
+    """表紙に『調理時間・人数・難易度』の情報バッジを上品に置く（保存率UPの数字訴求）。"""
+    font = gothic(32)
+    segs = [f"調理 {recipe.time}",
+            f"{recipe.servings}",
+            f"難易度 {'★' * recipe.difficulty}{'☆' * (5 - recipe.difficulty)}"]
+    pad_x, pad_y, gap = 34, 16, 36
+    widths = [draw.textlength(s, font=font) for s in segs]
+    inner = sum(widths) + gap * (len(segs) - 1)
+    box_w = int(inner + pad_x * 2)
+    box_h = int(font.size + pad_y * 2)
+    x0 = (W - box_w) // 2
+
+    ov = Image.new("RGBA", (box_w, box_h), (0, 0, 0, 0))
+    od = ImageDraw.Draw(ov)
+    od.rounded_rectangle([0, 0, box_w - 1, box_h - 1], radius=box_h // 2,
+                         fill=(0, 0, 0, 150), outline=cfg["title_gold"], width=2)
+    img.paste(ov, (x0, int(y)), ov)
+
+    tx = x0 + pad_x
+    ty = y + pad_y
+    for i, (s, w) in enumerate(zip(segs, widths)):
+        if i > 0:
+            dvx = tx - gap / 2
+            draw.line([(dvx, y + 12), (dvx, y + box_h - 12)], fill=cfg["title_gold"], width=1)
+        _text(draw, (tx, ty), s, font, cfg["title_white"], stroke=2)
+        tx += w + gap
+    return y + box_h
+
+
 def render_cover(recipe: Recipe, hero: Image.Image) -> Image.Image:
     d_cfg = config.design()
     img = hero.convert("RGBA")
@@ -365,16 +395,21 @@ def render_cover(recipe: Recipe, hero: Image.Image) -> Image.Image:
     _spaced_center(draw, recipe.title_main, W // 2, y, main_font,
                    d_cfg["title_white"], spacing=14, stroke=4, stroke_fill="#000")
     y += 168
-    # 金のアクセント線
+    # 金の二重ヘアライン（細・極細）で高級感を底上げ
     lw = min(W - mx * 2, len(recipe.title_main) * 150)
-    draw.line([(W // 2 - lw // 2, y), (W // 2 + lw // 2, y)], fill=d_cfg["title_gold"], width=4)
-    y += 36
+    x0, x1 = W // 2 - lw // 2, W // 2 + lw // 2
+    draw.line([(x0, y), (x1, y)], fill=d_cfg["title_gold"], width=3)
+    draw.line([(x0, y + 9), (x1, y + 9)], fill=d_cfg["title_gold"], width=1)
+    y += 40
 
     # 説明文
     desc_font = gothic(36)
     for line in _wrap(draw, recipe.description, desc_font, W - mx * 2):
         _text(draw, (mx, y), line, desc_font, d_cfg["body_text"], stroke=2)
         y += 50
+
+    # 情報バッジ（調理時間・人数・難易度）— 1枚目で『作れそう』を即訴求し保存を促す
+    _cover_badge(img, draw, y + 16, recipe, d_cfg)
 
     return img.convert("RGB")
 
@@ -402,6 +437,9 @@ def render_card(recipe: Recipe, hero: Image.Image, steps: list[Image.Image]) -> 
     _text(draw, (60, 60), recipe.title_top, gothic(56), c["title_gold"], stroke=3)
     _spaced_center(draw, recipe.title_main, W // 2, 130, mincho(104),
                    c["title_white"], spacing=10, stroke=4)
+
+    # ヒーロー写真と情報パートを分ける金のセパレータ
+    draw.line([(0, top_h), (W, top_h)], fill=c["title_gold"], width=2)
 
     y = top_h + 30
 
