@@ -13,27 +13,22 @@
   pip install playwright pyyaml
   playwright install chromium
 
-== 使い方 ==
-  python auto_gemini.py                # output内の全投稿の不足画像を生成
-  python auto_gemini.py 2026-06-15_01  # 投稿を指定
-  python auto_gemini.py --headless     # 画面非表示（初回ログイン後）
-初回はブラウザが開くので、Geminiにログインしてください（プロフィールは保存され、次回以降は自動）。
-生成後は自動で  python run.py --build  まで実行し、品質審査まで行います。
+== 1投稿の作り方（成果物は2枚: 表紙＋レシピカード）==
+  生成は【2回だけ】: ① hero(表紙用の完成料理写真) ② steps(6工程を1枚にまとめたグリッド)。
+  文字は入れない（あとで python run.py --build がPythonで綺麗に合成する）。
 
-== 厳密審査（APIキー不要のブラウザ審査）==
-  APIキー(AIza)が使えない環境向けに、ログイン済みブラウザのGeminiへ生成画像を
-  直接アップロードして各責任者ルーブリックで採点させる「ブラウザ審査」を内蔵。
-    python auto_gemini.py --review browser   # ブラウザ審査を強制
-    python auto_gemini.py --review auto       # 既定。キーがあればAPI・無ければブラウザ
-    python auto_gemini.py --review api        # API審査(要GEMINI_API_KEY)
-    python auto_gemini.py --review off        # 審査せず1発で採用
-  ブラウザ審査は生成チャットを汚さないよう専用タブで実施する。
-  審査も固定の専用チャット(既定「TikTok画像審査」)に合流し、会長の指摘や過去の
-  審査文脈(ナレッジ)が蓄積して意図が伝わりやすくなる:
-    python auto_gemini.py --review browser --review-chat "TikTok画像審査"
-    python auto_gemini.py --review browser --review-new   # 合流せず新規チャットで
-  初回はそのチャットが無いので新規作成される。次回から合流できるよう、作られた
-  審査チャットを手動で「TikTok画像審査」と名付けておく。
+  1) python run.py --fresh --count 1   # 1投稿のレシピ枠を作る
+  2) python auto_gemini.py             # Geminiで hero と steps を生成→素材保存→2枚に合成
+     - 初回はブラウザが開くのでGeminiにログイン（プロフィール保存、次回以降は自動）。
+     - 生成のみ行い、最後に自動で python run.py --build まで実行して2枚に合成する。
+
+== 審査は生成と分離（あとで単一タブで実行）==
+  生成タブを壊さないため、審査は別コマンドにした（APIキー不要のブラウザ審査）。
+    python auto_gemini.py --review-only                 # 既存素材を審査だけ実行
+    python auto_gemini.py --review-only --review-chat "TikTok画像審査"
+  審査は固定の専用チャット(既定「TikTok画像審査」)に合流し、会長の指摘や過去の
+  審査文脈(ナレッジ)が蓄積する。初回はそのチャットが無いので新規作成される——
+  次回から合流できるよう、作られた審査チャットを手動で「TikTok画像審査」と名付けておく。
 """
 
 from __future__ import annotations
@@ -48,7 +43,7 @@ from pathlib import Path
 import yaml
 
 from src import config
-from src.image_generator import hero_prompt, step_prompt
+from src.image_generator import hero_prompt, steps_grid_prompt
 from src.recipe_generator import _recipe_from_dict
 
 GEMINI_URL = "https://gemini.google.com/app"
@@ -82,11 +77,16 @@ def load_recipe(post_dir: Path):
 # 各要素: (ファイル名, プロンプト, 種類, アスペクト)
 
 def needed_images(post_dir: Path):
+    """1投稿に必要な生成は2回だけ。
+    ① hero  … 表紙＆カード上部に使う完成料理写真（縦9:16）
+    ② steps … 6工程を1枚にまとめたグリッド写真（縦3:4）。後でPythonが6分割して使用。
+    文字は入れない（Python側が綺麗に合成する）。
+    """
     recipe = load_recipe(post_dir)
-    items = [("hero", hero_prompt(recipe), "hero", "9:16")]
-    for i, st in enumerate(recipe.steps, start=1):
-        items.append((f"step_{i}", step_prompt(recipe, st.title, st.detail), "step", "1:1"))
-    return items
+    return [
+        ("hero", hero_prompt(recipe), "hero", "9:16"),
+        ("steps", steps_grid_prompt(recipe), "stepgrid", "3:4"),
+    ]
 
 
 def _find_existing(assets: Path, name: str) -> Path | None:
@@ -421,141 +421,110 @@ def _browser_review(page, image_path: Path, recipe, kind: str, aspect: str):
     return res
 
 
-def make_browser_reviewer(ctx, chat_name: str = "", realign: bool = False):
-    """ブラウザ審査用の専用タブを遅延生成し、reviewer関数を返す。
+# --- メイン処理 --------------------------------------------------------
 
-    chat_name を指定すると、審査もその固定チャットに合流する。これにより会長の
-    指摘・過去の審査文脈（ナレッジ）が同じチャットに蓄積し、意図が伝わりやすくなる。
-    ブラウザ審査に失敗した画像は review_image（API→簡易判定）にフォールバックする。
-    """
-    from src.design_director import ceo_brief, review_image
-
-    state = {"page": None}
-
-    def reviewer(image_path: Path, recipe, kind: str, aspect: str):
-        rp = state["page"]
-        if rp is None:
-            rp = ctx.new_page()
-            rp.goto(GEMINI_URL, wait_until="domcontentloaded")
-            time.sleep(2)
-            _wait_logged_in(rp)   # ログインは生成タブと共有（同一プロファイル）
-            state["page"] = rp
-            print("   🔍 審査用タブを起動しました（APIキー不要のブラウザ審査）。")
-            # 審査も固定チャットに合流し、過去の文脈・指摘を引き継ぐ。
-            joined = False
-            if chat_name:
-                print(f"   💬 審査チャット「{chat_name}」に合流を試みます…")
-                joined = _open_chat(rp, chat_name)
-            if joined:
-                print(f"      ✅ 「{chat_name}」に合流。過去の審査ナレッジを引き継ぎます。")
-                if realign:
-                    print("      🤝 審査の意図(デザイン目的)を再共有中…")
-                    if _send_prompt(rp, ceo_brief()):
-                        time.sleep(6)
-            else:
-                if chat_name:
-                    print(f"      ⚠ 「{chat_name}」が見つからないため新規チャットで開始します"
-                          f"（このチャットを手動で『{chat_name}』と名付けると次回から合流できます）。")
-                _new_chat(rp)
-                rp.goto(GEMINI_URL, wait_until="domcontentloaded")
-                time.sleep(2)
-                # 新規審査チャットには、まず審査の意図(デザイン目的)を共有して土台を作る。
-                print("      🤝 審査チャットにデザイン意図を共有中…")
-                if _send_prompt(rp, ceo_brief()):
-                    time.sleep(6)
-        res = _browser_review(rp, image_path, recipe, kind, aspect)
-        return res or review_image(image_path, recipe, kind, aspect)
-
-    return reviewer
-
-
-# --- デザイン責任者による品質チェック＋作り直しループ -------------------
-
-def _retry_prompt(orig_prompt: str, result) -> str:
-    """審査で不合格だった画像を、改善要望を添えて作り直すためのプロンプト。"""
-    reqs = "\n".join(f"・{r}" for r in (result.requests or [])) or "・もっと美味しそうに、本物の写真らしく。"
-    base = result.regenerate_prompt or orig_prompt
-    return (
-        f"今の画像はデザイン責任者の審査で {result.total}/100点（不合格）でした。"
-        "同じ料理・同じ世界観のまま、次の点を必ず改善して作り直してください:\n"
-        f"{reqs}\n---\n{base}"
-    )
-
-
-def _make_with_review(page, recipe, save_path: Path, name: str,
-                      prompt: str, kind: str, aspect: str, reviewer=None) -> bool:
-    """画像を生成→デザイン責任者が審査→不合格なら作り直し。合格 or 最高得点を採用。
-
-    reviewer(image_path, recipe, kind, aspect) -> ReviewResult。
-    未指定時は review_image（API→簡易判定）を使う。
-    """
-    if reviewer is None:
-        from src.design_director import review_image as reviewer
-
-    best_score = -1
-    cur_prompt = prompt
-    for attempt in range(1, MAX_ATTEMPTS + 1):
-        tag = "生成" if attempt == 1 else f"作り直し{attempt - 1}回目"
-        print(f"  ▶ {name} を{tag}中…")
-        baseline = _count_images(page)
-        if not _send_prompt(page, cur_prompt):
-            return False
-        tmp = save_path.with_suffix(f".try{attempt}.png")
-        if not _grab_image(page, tmp, baseline=baseline):
-            print(f"  ⚠ {name}: 画像を自動取得できませんでした。手動で {save_path} に置いてください。")
-            return best_score >= 0
-
-        res = reviewer(tmp, recipe, kind=kind, aspect=aspect)
-        mark = "✅合格" if res.passed else "❌不合格"
-        print(f"     品質審査: 平均{res.total}/100 {mark}（各責任者の合格ライン{res.pass_score}・{res.engine}）")
-        # 責任者ごとの合否（各100点満点。どの責任者で問題が出たか）
-        for v in res.directors:
-            dm = "✅" if v["passed"] else "❌"
-            print(f"        {dm} {v['name']}〔{v['area']}〕 {v['score']}/100")
-        ng = res.failed_directors()
-        if ng:
-            print(f"     ⚠ 問題の所在: {'、'.join(ng)}")
-        if res.summary:
-            print(f"     社長総評: {res.summary}")
-
-        # これまでで最高得点なら採用（save_path を更新）
-        if res.total > best_score:
-            best_score = res.total
-            tmp.replace(save_path)
-        else:
-            tmp.unlink(missing_ok=True)
-
-        if res.passed:
-            print(f"  ✅ {name}: 合格して保存 → {save_path}")
-            return True
-        # 簡易判定(heuristic)のときは、作り直しても同じ判定で無意味なので中断。
-        # heuristicに落ちる=ブラウザ審査もAPI審査も使えなかった、という意味。
-        if res.engine.startswith("heuristic"):
-            print(f"  ⚠ {name}: 本格審査が使えず簡易判定のため作り直しを中断し保存 → {save_path}")
-            print("     ※ 厳密審査するには『--review browser』でブラウザ審査を使うか、"
-                  "有効なAIza形式の GEMINI_API_KEY を設定してください。")
-            return True
-        if attempt < MAX_ATTEMPTS:
-            for r in (res.requests or [])[:4]:
-                print(f"       → 改善指示: {r}")
-            cur_prompt = _retry_prompt(prompt, res)
-            time.sleep(2)
-
-    print(f"  ⚠ {name}: {MAX_ATTEMPTS}回試して合格に届かず。最高得点({best_score})の画像を採用 → {save_path}")
+def _make_image(page, save_path: Path, name: str, prompt: str) -> bool:
+    """画像を1枚生成して保存する（審査はしない。生成と審査は分離）。"""
+    print(f"  ▶ {name} を生成中…")
+    baseline = _count_images(page)
+    if not _send_prompt(page, prompt):
+        return False
+    if not _grab_image(page, save_path, baseline=baseline):
+        print(f"  ⚠ {name}: 画像を自動取得できませんでした。手動で {save_path} に置いてください。")
+        return False
+    print(f"  ✅ 保存: {save_path}")
     return True
 
 
-# --- メイン処理 --------------------------------------------------------
+def _print_review(res) -> None:
+    """ブラウザ審査の結果を1件ぶん見やすく出力する。"""
+    mark = "✅合格" if res.passed else "❌不合格"
+    print(f"     品質審査: 平均{res.total}/100 {mark}"
+          f"（各責任者の合格ライン{res.pass_score}・{res.engine}）")
+    for v in res.directors:
+        dm = "✅" if v["passed"] else "❌"
+        print(f"        {dm} {v['name']}〔{v['area']}〕 {v['score']}/100")
+        if v["comment"]:
+            print(f"           所見: {v['comment']}")
+    if res.summary:
+        print(f"     社長総評: {res.summary}")
 
-def _no_reviewer(image_path, recipe, kind, aspect):
-    """--review off 用。審査せず即合格扱いにする。"""
-    from src.design_director import ReviewResult, _pass_score
-    return ReviewResult(passed=True, total=100, pass_score=_pass_score(),
-                        summary="審査スキップ（--review off）", engine="off（審査なし）")
+
+def review_existing(post_dirs, headless: bool, review_chat: str = "", realign: bool = False):
+    """【審査だけ】を単一タブで実行する（生成タブと分離なので壊れない）。
+
+    各投稿の素材 hero.* と steps.*（6工程グリッド）を、ログイン済みブラウザの
+    Geminiに見せて厳格ルーブリックで採点し、審査結果.txt に保存する。
+    """
+    from playwright.sync_api import sync_playwright
+
+    from src.design_director import ceo_brief
+
+    targets = [("hero", "hero", "9:16"), ("steps", "stepgrid", "3:4")]
+    PROFILE_DIR.mkdir(exist_ok=True)
+    with sync_playwright() as p:
+        ctx = p.chromium.launch_persistent_context(
+            user_data_dir=str(PROFILE_DIR),
+            headless=headless,
+            viewport={"width": 1280, "height": 900},
+            args=["--disable-blink-features=AutomationControlled"],
+        )
+        page = ctx.new_page()
+        page.goto(GEMINI_URL, wait_until="domcontentloaded")
+        if not _wait_logged_in(page):
+            print("ログインを確認できませんでした。中止します。")
+            ctx.close()
+            return
+        print("🔍 審査のみ実行（単一タブ・APIキー不要のブラウザ審査）。")
+        print("\n" + ceo_brief())
+
+        # 審査専用チャットに合流（ナレッジ蓄積）。無ければ新規＋意図共有。
+        joined = False
+        if review_chat:
+            print(f"\n💬 審査チャット「{review_chat}」に合流を試みます…")
+            joined = _open_chat(page, review_chat)
+        if joined:
+            print(f"   ✅ 「{review_chat}」に合流。過去の審査ナレッジを引き継ぎます。")
+            if realign and _send_prompt(page, ceo_brief()):
+                time.sleep(6)
+        else:
+            if review_chat:
+                print(f"   ⚠ 「{review_chat}」が無いため新規チャットで開始します"
+                      f"（このチャットを手動で『{review_chat}』と名付けると次回から合流できます）。")
+            _new_chat(page)
+            page.goto(GEMINI_URL, wait_until="domcontentloaded")
+            time.sleep(2)
+            if _send_prompt(page, ceo_brief()):
+                time.sleep(6)
+
+        for d in post_dirs:
+            recipe = load_recipe(d)
+            assets = d / "素材"
+            print(f"\n=== {d.name} 審査 ===")
+            reports = []
+            for name, kind, aspect in targets:
+                img = _find_existing(assets, name)
+                if img is None:
+                    print(f"  ⚠ {name}: 素材が見つかりません（先に生成してください）。")
+                    continue
+                title = "メイン写真(hero)" if kind == "hero" else "6工程グリッド(steps)"
+                print(f"  🔍 {title} を審査中…")
+                res = _browser_review(page, img, recipe, kind, aspect)
+                if res is None:
+                    print(f"  ⚠ {name}: ブラウザ審査に失敗しました（セレクタ要確認）。")
+                    continue
+                _print_review(res)
+                reports.append(res.report(title=title))
+                time.sleep(2)
+            if reports:
+                (d / "審査結果.txt").write_text("\n\n".join(reports) + "\n", encoding="utf-8")
+                print(f"  → 審査結果を保存: {d / '審査結果.txt'}")
+        ctx.close()
+        print("\n📋 社長報告（会長へ）: 審査を完了しました。")
 
 
 def process(post_dirs, headless: bool, chat_name: str = "", realign: bool = False,
-            review_mode: str = "auto", review_chat: str = ""):
+            review_chat: str = ""):
     from playwright.sync_api import sync_playwright
 
     PROFILE_DIR.mkdir(exist_ok=True)
@@ -576,25 +545,7 @@ def process(post_dirs, headless: bool, chat_name: str = "", realign: bool = Fals
             return
 
         total_made = 0
-
-        # 審査エンジンを決定（auto: 使えるAPIキーがあればAPI、無ければブラウザ審査）。
-        # AQ.形式キーはGoogle側不具合で401になるため usable_gemini_api_key() が除外する。
-        mode = review_mode
-        if mode == "auto":
-            mode = "api" if config.usable_gemini_api_key() else "browser"
-        if mode == "api" and not config.usable_gemini_api_key():
-            print("⚠ 指定のAPIキーは使用できません（未設定かAQ.形式）。ブラウザ審査に切替えます。")
-            mode = "browser"
-        if mode == "api":
-            from src.design_director import review_image as reviewer
-            print("🔍 審査エンジン: API（GEMINI_API_KEY を使用）")
-        elif mode == "off":
-            reviewer = _no_reviewer
-            print("🔍 審査エンジン: なし（--review off）")
-        else:
-            reviewer = make_browser_reviewer(ctx, chat_name=review_chat, realign=realign)
-            print("🔍 審査エンジン: ブラウザ審査（APIキー不要・Geminiに画像を直接見せて採点）"
-                  + (f"／審査チャット「{review_chat}」に固定" if review_chat else ""))
+        print("🎨 生成のみ実行します（審査は分離。あとで「python auto_gemini.py --review-only」）。")
 
         # 社長(このシステム)が、会長(あなた)のビジョンを翻訳した
         # デザインの目的と意図を、各責任者へ共有してから着手する。
@@ -649,12 +600,12 @@ def process(post_dirs, headless: bool, chat_name: str = "", realign: bool = Fals
                 continue
 
             for name, prompt, kind, aspect in todo:
-                if _make_with_review(page, recipe, assets / f"{name}.png",
-                                     name, prompt, kind, aspect, reviewer=reviewer):
+                if _make_image(page, assets / f"{name}.png", name, prompt):
                     total_made += 1
                 time.sleep(3)   # 次の入力まで少し待つ
         ctx.close()
-        print(f"\n📋 社長報告（会長へ）: 全{total_made}枚を各責任者の審査を通して納品しました。")
+        print(f"\n📋 社長報告（会長へ）: 全{total_made}枚を生成・保存しました"
+              "（hero=表紙写真／steps=6工程グリッド）。")
 
 
 def main():
@@ -667,9 +618,8 @@ def main():
     ap.add_argument("--new", action="store_true", help="既存チャットに合流せず新規チャットで行う")
     ap.add_argument("--realign", action="store_true",
                     help="既存チャット合流時もブランド世界観を再共有する")
-    ap.add_argument("--review", choices=["auto", "browser", "api", "off"], default="auto",
-                    help="審査エンジン: auto(既定/キーがあればAPI・無ければブラウザ) / "
-                         "browser(APIキー不要でGeminiに画像を見せて採点) / api / off")
+    ap.add_argument("--review-only", action="store_true",
+                    help="生成せず『審査だけ』を単一タブで実行する（生成と分離）")
     ap.add_argument("--review-chat", default=REVIEW_CHAT_NAME,
                     help=f"審査を固定する専用チャット名（既定: {REVIEW_CHAT_NAME}）。"
                          "ここに審査ナレッジが蓄積する")
@@ -687,18 +637,25 @@ def main():
         print("対象が見つかりません。先に python run.py を実行してください。")
         return
 
+    review_chat = "" if args.review_new else args.review_chat
+
     try:
+        if args.review_only:
+            # 【審査だけ】単一タブで実行（生成タブを壊さない）
+            review_existing(dirs, headless=args.headless,
+                            review_chat=review_chat, realign=args.realign)
+            return
+        # 【生成だけ】審査はしない（あとで --review-only）
         process(dirs, headless=args.headless,
                 chat_name=("" if args.new else args.chat), realign=args.realign,
-                review_mode=args.review,
-                review_chat=("" if args.review_new else args.review_chat))
+                review_chat=review_chat)
     except ModuleNotFoundError:
         print("Playwrightが未インストールです。次を実行してください:\n"
               "  pip install playwright pyyaml\n  playwright install chromium")
         return
 
     if not args.no_build:
-        print("\n▶ 合成と品質審査を実行します…")
+        print("\n▶ 2枚（表紙＋レシピカード）に合成します…")
         for d in dirs:
             subprocess.run([sys.executable, "run.py", "--build", d.name])
 

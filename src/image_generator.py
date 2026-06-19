@@ -213,6 +213,43 @@ def step_prompt(recipe: Recipe, step_title: str, detail: str) -> str:
     )
 
 
+def steps_grid_prompt(recipe: Recipe) -> str:
+    """6つの調理工程を「1枚の画像」に格子状(縦3段×横2列)でまとめて作るプロンプト。
+
+    会長要望: 工程は6枚バラではなく1枚にまとめる。文字は入れず(あとでPythonが
+    綺麗に重ねる)、6コマの写真だけを整然と並べる。
+    """
+    steps = recipe.steps[:6]
+    items = "／".join(f"{i}.{s.title}（{s.detail}）" for i, s in enumerate(steps, start=1))
+    n = len(steps)
+    return (
+        f"共有済みのブランド世界観を厳守して、料理「{recipe.title_main}」の調理工程を"
+        f"【1枚の画像】にまとめて作る。縦3段×横2列の整然とした格子状に{n}コマを並べる。"
+        "並び順は必ず左上から右へ、上段→中段→下段（1,2／3,4／5,6）。"
+        "各コマは均等な大きさで、コマ間にごく細い余白(黒)を入れて区切る。"
+        f"各コマの内容（この順番で）: {items}。"
+        "各コマは鍋・フライパン・まな板の中身を真俯瞰(90度)または斜め俯瞰(45度)で大きく写し、"
+        "炒める・煮立つ・和える等の調理中の臨場感を出す。"
+        "全コマで暗背景・暖色スポット光・濃い焦げ茶の木目・色温度を完全に統一する。"
+        f"{_APPETIZING}"
+        f"{BRAND_WORLD}"
+        "【最重要】コマの中にも外にも、番号・文字・ロゴ・枠線・キラキラ記号は一切入れない"
+        "（写真を格子に並べるだけ）。全体は縦長(3:4)。"
+    )
+
+
+def _slice_grid(img: Image.Image, rows: int = 3, cols: int = 2, n: int | None = None) -> list[Image.Image]:
+    """グリッド画像を rows×cols のセルに等分し、左上→右の読み順で返す。"""
+    w, h = img.size
+    cw, ch = w // cols, h // rows
+    cells: list[Image.Image] = []
+    for r in range(rows):
+        for c in range(cols):
+            cells.append(img.crop((c * cw, r * ch, c * cw + cw, r * ch + ch)))
+    return cells if n is None else cells[:n]
+
+
+
 # --- 素材（ユーザー提供画像）の読み込み -----------------------------------
 
 _IMG_EXTS = (".jpg", ".jpeg", ".png", ".webp")
@@ -264,6 +301,29 @@ def step_image(recipe: Recipe, idx: int, step_title: str, detail: str,
            or _gemini_image(step_prompt(recipe, step_title, detail), "1:1")
            or _dummy_food(400, 400, step_title))
     return _cover_resize(img, 400, 400)
+
+
+def steps_grid_raw(recipe: Recipe, assets_dir: Path | None = None) -> Image.Image | None:
+    """6工程を1枚にまとめたグリッド画像を取得（素材 or Gemini）。無ければ None。"""
+    return (_find_asset(assets_dir, "steps", "steps_grid", "grid", "工程")
+            or _gemini_image(steps_grid_prompt(recipe), "3:4"))
+
+
+def step_images(recipe: Recipe, assets_dir: Path | None = None) -> list[Image.Image]:
+    """レシピカード用の工程サムネ6枚を返す。
+
+    優先順位:
+      1) 1枚にまとめたグリッド画像(素材steps.* / Gemini) → 6分割して使用（会長方式）
+      2) 個別の step_1〜6（素材 / Gemini / ダミー）→ 後方互換
+    """
+    n = len(recipe.steps)
+    grid = steps_grid_raw(recipe, assets_dir)
+    if grid is not None:
+        rows = (n + 1) // 2 if n else 3
+        cells = _slice_grid(grid, rows=max(rows, 1), cols=2, n=n)
+        return [_cover_resize(c, 400, 400) for c in cells]
+    return [step_image(recipe, i, s.title, s.detail, assets_dir)
+            for i, s in enumerate(recipe.steps, start=1)]
 
 
 # --- 描画ヘルパー ---------------------------------------------------------
@@ -535,8 +595,7 @@ def generate_post_images(plan: PostPlan, recipe: Recipe, out_dir: Path,
                          assets_dir: Path | None = None) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     hero = hero_image(recipe, assets_dir)
-    steps = [step_image(recipe, i, s.title, s.detail, assets_dir)
-             for i, s in enumerate(recipe.steps, start=1)]
+    steps = step_images(recipe, assets_dir)
 
     cover = render_cover(recipe, hero)
     card = render_card(recipe, hero, steps)
