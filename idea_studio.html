@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アイデア・スタジオ — 情報カード伴走</title>
+<style>
+  :root{
+    --bg:#0f1419; --panel:#1a2129; --panel2:#222c36; --line:#2e3a46;
+    --txt:#e6edf3; --mut:#9fb0c0; --acc:#4ade80; --accB:#38bdf8; --accA:#f472b6;
+    --warn:#fbbf24; --chip:#2a3540; --vio:#a78bfa; --org:#fb923c; --red:#f87171;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+    background:var(--bg);color:var(--txt);line-height:1.6;-webkit-font-smoothing:antialiased}
+  header{padding:18px 16px 12px;background:linear-gradient(135deg,#13351f,#0f1419);border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:19px}
+  .sub{color:var(--mut);font-size:12px;margin-top:3px}
+  .northstar{margin-top:9px;padding:9px 11px;background:#13351f;border:1px solid #1f5132;border-radius:10px;font-size:12px}
+  .northstar b{color:var(--acc)}
+  main{padding:14px;max-width:1180px;margin:0 auto}
+  .toolbar{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:14px}
+  textarea#input{width:100%;min-height:56px;resize:vertical;padding:10px 12px;border-radius:10px;
+    border:1px solid var(--line);background:var(--bg);color:var(--txt);font-size:14px;font-family:inherit}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:9px}
+  button{background:var(--panel2);color:var(--txt);border:1px solid var(--line);padding:8px 14px;
+    border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;transition:.15s}
+  button:hover{border-color:var(--acc)}
+  button.primary{background:var(--acc);color:#06210f;border-color:var(--acc);font-weight:700}
+  button.ghost{background:transparent;color:var(--mut);padding:6px 10px}
+  button.sm{padding:5px 9px;font-size:12px}
+  select,input.txt{background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:9px;
+    padding:7px 9px;font-size:13px;font-family:inherit}
+  .spacer{flex:1}
+  .aibadge{font-size:11px;padding:3px 9px;border-radius:20px;border:1px solid var(--line);color:var(--mut)}
+  .aibadge.on{background:#04212e;color:var(--accB);border-color:var(--accB);font-weight:700}
+  /* companion */
+  .coach{background:linear-gradient(135deg,#1a2530,#161d25);border:1px solid #34516a;border-radius:14px;padding:13px 14px;margin-bottom:14px}
+  .coach h3{margin:0 0 8px;font-size:14px;color:var(--accB);display:flex;align-items:center;gap:6px}
+  .obs{display:flex;gap:9px;align-items:flex-start;font-size:13px;padding:5px 0;border-top:1px dashed #2c3b48}
+  .obs:first-of-type{border-top:none}
+  .obs .ic{flex:0 0 auto;font-size:15px}
+  .obs b{color:var(--txt)}
+  .nextline{margin-top:9px;padding:8px 10px;background:#0f2a1a;border:1px solid #1f5132;border-radius:10px;font-size:13px}
+  .nextline b{color:var(--acc)}
+  /* distribution */
+  .dist{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .dist .b{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:6px 11px;font-size:12px;color:var(--mut)}
+  .dist .b b{color:var(--txt);font-size:15px;margin-right:3px}
+  /* board controls */
+  .bc{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .bc .lbl{font-size:12px;color:var(--mut)}
+  /* board */
+  .board{display:grid;gap:12px;grid-template-columns:1fr}
+  @media(min-width:720px){.board{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;min-height:60px}
+  .col h4{margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:6px}
+  .col h4 .cnt{margin-left:auto;font-size:11px;color:var(--mut);background:var(--panel2);border-radius:10px;padding:1px 8px}
+  .ic-card{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--acc);
+    border-radius:9px;padding:9px 10px;margin-bottom:8px;cursor:pointer;transition:.12s}
+  .ic-card:hover{border-color:var(--accB);transform:translateY(-1px)}
+  .ic-card .txt{font-size:13px;white-space:pre-wrap;word-break:break-word}
+  .ic-card .tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+  .tg{font-size:10px;padding:1px 7px;border-radius:8px;background:var(--chip);color:var(--mut);border:1px solid var(--line)}
+  .tg.conf{border:none}
+  .empty{color:var(--mut);font-size:12px;text-align:center;padding:14px 0}
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:560px;width:100%;max-height:90vh;overflow:auto}
+  .modal h3{margin:0 0 12px;font-size:15px}
+  .modal label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+  .modal textarea{width:100%;min-height:80px;resize:vertical;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--txt);font-size:14px;font-family:inherit}
+  .selgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .modal select{width:100%}
+  .mfoot{display:flex;gap:8px;margin-top:16px;align-items:center}
+  .hint{font-size:11px;color:var(--mut);margin-top:6px;line-height:1.5}
+  .foot{color:var(--mut);font-size:11px;text-align:center;padding:22px 12px}
+  a{color:var(--accB)}
+  code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🗂️ アイデア・スタジオ <span style="font-size:13px;color:var(--mut)">— 情報カード × AI自動分類 × 伴走</span></h1>
+  <div class="sub">カードを書く → AIが「種別・テーマ・対象・段階」に自動分類 → ボードで可視化 → 伴走パネルが次の一手を提案</div>
+  <div class="northstar">🌟 北極星：<b>若さを保つ（見た目＋中身の二階建て）</b>／フレーム＝<b>D1 見える化</b>＋<b>D3 積立</b>。健康寿命は下支え。</div>
+</header>
+
+<main>
+  <!-- 入力 -->
+  <div class="toolbar">
+    <textarea id="input" placeholder="思いついたこと・事実・問い・タスクを1枚ずつ書いて Enter で追加（Shift+Enterで改行）。例：『男性は美容と言うと恥ずかしい→自己投資と言い換える』"></textarea>
+    <div class="row">
+      <button class="primary" id="addBtn">＋ カード追加</button>
+      <button id="bulkBtn" title="テキストエリアの各行を1枚ずつカード化">行ごとに一括追加</button>
+      <span class="spacer"></span>
+      <span class="aibadge" id="aiBadge">AI分類：ローカル</span>
+      <button class="ghost sm" id="setBtn">⚙ 設定</button>
+      <button class="ghost sm" id="expBtn">⬇ 書き出し</button>
+      <button class="ghost sm" id="impBtn">⬆ 取込</button>
+      <button class="ghost sm" id="sampleBtn">サンプル</button>
+      <button class="ghost sm" id="clearBtn">全消去</button>
+    </div>
+  </div>
+
+  <!-- 伴走パネル -->
+  <div class="coach" id="coach"></div>
+
+  <!-- 分布 -->
+  <div class="dist" id="dist"></div>
+
+  <!-- ボード操作 -->
+  <div class="bc">
+    <span class="lbl">分類軸：</span>
+    <select id="groupBy">
+      <option value="type">種別で見る</option>
+      <option value="theme">テーマで見る</option>
+      <option value="target">対象（A/B）で見る</option>
+      <option value="stage">段階（発散→実行）で見る</option>
+    </select>
+    <input class="txt" id="search" placeholder="🔍 検索" style="flex:1;min-width:120px">
+    <span class="lbl" id="total"></span>
+  </div>
+
+  <!-- ボード -->
+  <div class="board" id="board"></div>
+</main>
+
+<!-- カード編集モーダル -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <h3>カードを編集 / 分類を手直し</h3>
+    <label>内容</label>
+    <textarea id="eText"></textarea>
+    <div class="selgrid">
+      <div><label>種別</label><select id="eType"></select></div>
+      <div><label>テーマ</label><select id="eTheme"></select></div>
+      <div><label>対象</label><select id="eTarget"></select></div>
+      <div><label>段階</label><select id="eStage"></select></div>
+    </div>
+    <div class="hint" id="eReason"></div>
+    <div class="mfoot">
+      <button class="primary" id="eSave">保存</button>
+      <button id="eReclass">🔄 AIで再分類</button>
+      <span class="spacer"></span>
+      <button id="eDel" style="color:var(--red);border-color:#5a2a2a">削除</button>
+      <button class="ghost" id="eCancel">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="overlay" id="setOverlay">
+  <div class="modal">
+    <h3>⚙ 設定 — AI分類エンジン</h3>
+    <label>分類モード</label>
+    <select id="sMode">
+      <option value="local">ローカル自動分類（オフライン・即時・無料）</option>
+      <option value="claude">Claude API（本物のAI・キーが必要）</option>
+    </select>
+    <div id="claudeFields" style="display:none">
+      <label>Anthropic APIキー（ブラウザ内のみ保存・外部送信は分類時のapi.anthropic.comのみ）</label>
+      <input class="txt" id="sKey" style="width:100%" placeholder="sk-ant-...">
+      <label>モデル</label>
+      <select id="sModel">
+        <option value="claude-haiku-4-5-20251001">claude-haiku-4-5（速い・安い／推奨）</option>
+        <option value="claude-sonnet-4-6">claude-sonnet-4-6（バランス）</option>
+        <option value="claude-opus-4-8">claude-opus-4-8（最高精度）</option>
+      </select>
+      <div class="hint">※ ブラウザから直接APIを呼ぶため <code>anthropic-dangerous-direct-browser-access</code> を使います。キーは端末のlocalStorageにのみ保存されます。共有PCでは使用後に「全消去」でクリアしてください。</div>
+    </div>
+    <div class="mfoot">
+      <button class="primary" id="sSave">保存</button>
+      <button class="ghost" id="sCancel">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileIn" accept="application/json" style="display:none">
+<div class="foot">単一HTML・自己完結 / データは端末のlocalStorageに保存 — アイデア・スタジオ</div>
+
+<script>
+/* ===== 分類タクソノミー ===== */
+const TYPES=[
+ {k:'idea',label:'💡 アイデア',c:'#4ade80'},
+ {k:'fact',label:'📊 事実',c:'#38bdf8'},
+ {k:'question',label:'❓ 問い',c:'#fbbf24'},
+ {k:'insight',label:'✨ 気づき',c:'#a78bfa'},
+ {k:'decision',label:'✅ 決定',c:'#34d399'},
+ {k:'task',label:'🛠 タスク',c:'#fb923c'},
+ {k:'risk',label:'⚠️ リスク',c:'#f87171'},
+];
+const THEMES=['見える化・測定','積立・投資','継続・習慣化','パーソナライズ','コミュニティ',
+ '製品形態・UX','信頼・エビデンス','課金・販売','市場・データ','法規・品質','ターゲット・動機','その他'];
+const TARGETS=[{k:'A',label:'🅰 女性'},{k:'B',label:'🅱 男性'},{k:'共通',label:'🤝 共通'}];
+const STAGES=[{k:'発散',label:'🌱 発散'},{k:'収束',label:'🎯 収束'},{k:'検証',label:'🔬 検証'},{k:'実行',label:'🚀 実行'}];
+
+const TYPE_RULES=[
+ ['question',[/[?？]/],['なぜ','どうやって','べきか','だろうか','どうする','可能か','どこまで','いくらで']],
+ ['decision',[],['確定','決定','に決め','採用','却下','見送','方針','ゴー','GO']],
+ ['risk',[],['リスク','懸念','問題','危険','注意','薬機','景表','違反','難しい','ボトルネック','課題']],
+ ['task',[/^\s*[-\[]/],['発注','選定','制作','設計する','調べる','リサーチ','作成','試作','決める','連絡','手配','見積','検証する','洗い出','まとめる']],
+ ['fact',[/[0-9０-９]+\s*(%|％|円|億|万|件|人|倍|位|社)/],['市場','調査','データ','出典','統計','シェア','成長率','売上','によると','報告']],
+ ['insight',[],['発見','気づき','示唆','つまり','要は','本質','根は','だから','逆に']],
+];
+const THEME_KW={
+ '見える化・測定':['測定','検査','可視化','スコア','数値','見える','グラフ','ダッシュボード','体組成','血圧','骨密度','握力','記録','ログ','カルテ','診断結果'],
+ '積立・投資':['積立','貯筋','貯金','複利','満期','通帳','資産','将来','つみたて','節約','口座'],
+ '継続・習慣化':['習慣','継続','毎日','毎朝','ストリーク','ルーティン','飲み忘れ','リマインド','続け','カレンダー','定着'],
+ 'パーソナライズ':['個別','最適化','出し分け','専用','処方','パーソナ','あなた','タイプ判定','体質'],
+ 'コミュニティ':['コミュニティ','SNS','ランキング','仲間','シェア','家族','ペア','夫婦','卒業生','口コミ','アンバサダー'],
+ '製品形態・UX':['剤型','錠剤','粉末','ゼリー','グミ','ドリンク','スープ','おにぎり','バー','容器','パッケージ','味','スティック','カプセル','形態','ヨーグルト'],
+ '信頼・エビデンス':['エビデンス','論文','GMP','第三者','医師','監修','透明','根拠','臨床','安全','信頼'],
+ '課金・販売':['価格','課金','サブスク','定期','LTV','CPA','販売','法人','返金','メンバーシップ','割引','ポイント','単価','獲得','アップセル','チャネル'],
+ '市場・データ':['市場','規模','成長','シェア','競合','億円','トレンド','需要','カテゴリ'],
+ '法規・品質':['薬機','景表','機能性表示','届出','原料','原価','品質','表示','規制','関与成分','SR'],
+ 'ターゲット・動機':['年代','ターゲット','動機','ペルソナ','20代','30代','40代','50代','シニア','悩み','インサイト','なぜ買う','見た目','モテ','清潔感'],
+};
+const TARGET_KW={
+ 'A':['女性','エクオール','更年期','大豆','イソフラボン','骨','肌','閉経','ホルモン','コラーゲン','セラミド','美容','糖化'],
+ 'B':['男性','ブラックジンジャー','筋','筋トレ','プロテイン','脂肪','EAA','HMB','サルコペニア','ジム','体脂肪','クレアチン'],
+};
+const STAGE_KW={
+ '実行':['発注','制作','量産','ローンチ','実装','リリース','手配','着手'],
+ '検証':['検査','試作','テスト','モニター','実証','検証','PoC','評価','効果測定'],
+ '収束':['絞り','比較','選定','優先','決める','確定','決定','どれにする','採用','却下'],
+};
+
+/* ===== 分類エンジン（ローカル） ===== */
+function hits(text,arr){return arr.filter(k=>text.includes(k))}
+function classifyLocal(text){
+  const t=text;
+  // type
+  let best={k:'idea',sc:0,kw:[]};
+  for(const [k,res,kws] of TYPE_RULES){
+    let sc=0,kw=[];
+    res.forEach(r=>{if(r.test(t)){sc+=2;}});
+    const h=hits(t,kws); sc+=h.length; kw=h;
+    if(sc>best.sc) best={k,sc,kw};
+  }
+  const type=best.k;
+  // theme
+  let th='その他',thSc=0,thKw=[];
+  for(const name in THEME_KW){const h=hits(t,THEME_KW[name]);if(h.length>thSc){th=name;thSc=h.length;thKw=h;}}
+  // target
+  const ha=hits(t,TARGET_KW.A),hb=hits(t,TARGET_KW.B);
+  let target='共通';
+  if(ha.length&&!hb.length)target='A'; else if(hb.length&&!ha.length)target='B';
+  else if(ha.length&&hb.length)target='共通';
+  // stage
+  let stage=null,stKw=[];
+  for(const s in STAGE_KW){const h=hits(t,STAGE_KW[s]);if(h.length){stage=s;stKw=h;break;}}
+  if(!stage){ stage=(type==='task')?'実行':(type==='decision')?'収束':(type==='fact'||type==='insight')?'検証':'発散'; }
+  // confidence
+  const totalHits=best.sc+thSc+(ha.length+hb.length)+stKw.length;
+  const conf= totalHits>=5?'高':totalHits>=2?'中':'低';
+  const reason=[...new Set([...best.kw,...thKw,...stKw])].slice(0,4).join('・')||'手がかり少なめ（推定）';
+  return {type,theme:th,target,stage,conf,reason};
+}
+
+/* ===== 分類エンジン（Claude API） ===== */
+async function classifyClaude(text){
+  const key=settings.key, model=settings.model||'claude-haiku-4-5-20251001';
+  if(!key) throw new Error('no key');
+  const sys=`あなたは新規事業のアイデア整理を伴走するアシスタントです。入力された情報カード1枚を分類し、JSONのみを返します。`+
+   `\ntype は次から1つ: ${TYPES.map(x=>x.k).join(', ')}（idea=アイデア, fact=事実/データ, question=問い, insight=気づき/示唆, decision=決定, task=タスク, risk=リスク/懸念）`+
+   `\ntheme は次から1つ: ${THEMES.join(' / ')}`+
+   `\ntarget は A(女性/エクオール/更年期/肌), B(男性/ブラックジンジャー/筋/脂肪), 共通 のいずれか`+
+   `\nstage は 発散 / 収束 / 検証 / 実行 のいずれか`+
+   `\nreason は分類根拠を15字以内の日本語で。`+
+   `\n出力は {"type","theme","target","stage","reason"} のJSONのみ。`;
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model,max_tokens:200,system:sys,messages:[{role:'user',content:`カード: ${text}`}]})
+  });
+  if(!res.ok){throw new Error('API '+res.status)}
+  const data=await res.json();
+  let txt=(data.content||[]).map(b=>b.text||'').join('');
+  const m=txt.match(/\{[\s\S]*\}/); if(!m) throw new Error('parse');
+  const o=JSON.parse(m[0]);
+  if(!TYPES.find(x=>x.k===o.type)) o.type='idea';
+  if(!THEMES.includes(o.theme)) o.theme='その他';
+  if(!['A','B','共通'].includes(o.target)) o.target='共通';
+  if(!['発散','収束','検証','実行'].includes(o.stage)) o.stage='発散';
+  o.conf='AI'; o.reason=(o.reason||'AI分類').slice(0,20);
+  return o;
+}
+async function classify(text){
+  if(settings.mode==='claude'&&settings.key){
+    try{return await classifyClaude(text);}catch(e){
+      const r=classifyLocal(text); r.reason='⚠APIエラー→ローカル: '+r.reason; return r;
+    }
+  }
+  return classifyLocal(text);
+}
+
+/* ===== 状態 ===== */
+let cards=[], settings={mode:'local',key:'',model:'claude-haiku-4-5-20251001'};
+const LS_C='ideaStudio.cards.v1', LS_S='ideaStudio.settings.v1';
+function load(){
+  try{cards=JSON.parse(localStorage.getItem(LS_C))||[]}catch(e){cards=[]}
+  try{settings=Object.assign(settings,JSON.parse(localStorage.getItem(LS_S))||{})}catch(e){}
+}
+function save(){localStorage.setItem(LS_C,JSON.stringify(cards))}
+function saveSet(){localStorage.setItem(LS_S,JSON.stringify(settings))}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+/* ===== カード操作 ===== */
+async function addCard(text){
+  text=text.trim(); if(!text)return;
+  const cl=await classify(text);
+  cards.unshift({id:uid(),text,...cl,createdAt:Date.now()});
+  save(); render();
+}
+async function addBulk(block){
+  const lines=block.split('\n').map(s=>s.trim()).filter(Boolean);
+  for(const ln of lines){ await addCard(ln); }
+}
+
+/* ===== 伴走パネル ===== */
+function buildCoach(){
+  const el=document.getElementById('coach');
+  if(!cards.length){
+    el.innerHTML=`<h3>🤝 伴走パネル</h3>
+     <div class="obs"><span class="ic">👋</span><div>カードがまだありません。思いついたことを上の欄にどんどん放り込んでください。<b>事実・アイデア・問い・タスク</b>が混ざっていてOK、AIが仕分けします。</div></div>
+     <div class="obs"><span class="ic">💡</span><div>まずは <b>「サンプル」ボタン</b> で動きを見るのがおすすめです。</div></div>`;
+    return;
+  }
+  const byType={}; TYPES.forEach(t=>byType[t.k]=0);
+  const byTheme={}; THEMES.forEach(t=>byTheme[t]=0);
+  const byTgt={A:0,B:0,'共通':0}, byStage={発散:0,収束:0,検証:0,実行:0};
+  cards.forEach(c=>{byType[c.type]++;byTheme[c.theme]++;byTgt[c.target]++;byStage[c.stage]++});
+  const obs=[];
+  // 発散 vs 収束/検証/実行
+  const diverge=byStage.発散, converge=byStage.収束+byStage.検証+byStage.実行;
+  if(diverge>0||converge>0){
+    if(diverge>converge*2&&diverge>=3)
+      obs.push(['⚖️',`いまは<b>発散フェーズ</b>（発散${diverge} / 収束以降${converge}）。アイデアは出ています。そろそろ<b>絞り込み・検証</b>に重心を移す頃合いです。`]);
+    else if(converge>diverge&&converge>=3)
+      obs.push(['⚖️',`<b>収束・実行</b>に寄っています（発散${diverge} / 収束以降${converge}）。煮詰まったら<b>発散</b>を1ラウンド入れて選択肢を広げると吉。`]);
+    else
+      obs.push(['⚖️',`発散${diverge} / 収束${byStage.収束} / 検証${byStage.検証} / 実行${byStage.実行} — バランス良好。`]);
+  }
+  // 未解決の問い
+  const qs=cards.filter(c=>c.type==='question');
+  if(qs.length) obs.push(['❓',`<b>未解決の問いが${qs.length}件</b>。例：「${qs[0].text.slice(0,28)}${qs[0].text.length>28?'…':''}」 — 答えを別カードで返すと前に進みます。`]);
+  // リスク
+  const rs=cards.filter(c=>c.type==='risk');
+  if(rs.length) obs.push(['⚠️',`<b>リスク／課題が${rs.length}件</b>。早めに対処カード（タスク）に変換を。`]);
+  // 盲点テーマ（中核8分類で0件のもの）
+  const core=THEMES.slice(0,8);
+  const blanks=core.filter(t=>byTheme[t]===0);
+  if(blanks.length&&cards.length>=4)
+    obs.push(['🔭',`盲点かも：<b>${blanks.slice(0,3).join('・')}</b> のカードがまだ0件。この観点でも1枚書いてみると抜けが埋まります。`]);
+  // A/B 偏り
+  obs.push(['🎯',`対象バランス → 🅰女性 <b>${byTgt.A}</b> / 🅱男性 <b>${byTgt.B}</b> / 共通 <b>${byTgt['共通']}</b>。`+
+    (byTgt.A===0?' 女性側の検討が手薄。':byTgt.B===0?' 男性側の検討が手薄。':'')]);
+  // next action
+  let next='';
+  if(qs.length) next=`未解決の問い「${qs[0].text.slice(0,24)}…」にカードで答える`;
+  else if(diverge>converge*2&&diverge>=3) next='出たアイデアを「収束（比較・選定）」して本命を2〜3枚に絞る';
+  else if(blanks.length) next=`盲点テーマ「${blanks[0]}」のカードを足す`;
+  else if(rs.length) next='リスクカードを対処タスクに変換する';
+  else next='手応えのあるカードを深掘り（処方・剤型・コピーまで具体化）する';
+
+  el.innerHTML=`<h3>🤝 伴走パネル <span style="font-size:11px;color:var(--mut);font-weight:400">（${cards.length}枚から自動観察）</span></h3>`+
+    obs.map(o=>`<div class="obs"><span class="ic">${o[0]}</span><div>${o[1]}</div></div>`).join('')+
+    `<div class="nextline">👉 次の一手：<b>${next}</b></div>`;
+}
+
+/* ===== 分布 ===== */
+function buildDist(){
+  const el=document.getElementById('dist');
+  if(!cards.length){el.innerHTML='';return;}
+  const byType={}; TYPES.forEach(t=>byType[t.k]=0);
+  cards.forEach(c=>byType[c.type]++);
+  el.innerHTML=TYPES.filter(t=>byType[t.k]>0).map(t=>
+    `<div class="b" style="border-color:${t.c}44"><b style="color:${t.c}">${byType[t.k]}</b>${t.label.replace(/^.. /,'')}</div>`).join('');
+}
+
+/* ===== ボード ===== */
+function render(){
+  buildCoach(); buildDist();
+  const gb=document.getElementById('groupBy').value;
+  const q=document.getElementById('search').value.trim();
+  let groups,keyOf,labelOf,colorOf=()=>'var(--acc)';
+  if(gb==='type'){groups=TYPES.map(x=>x.k);keyOf=c=>c.type;labelOf=k=>TYPES.find(x=>x.k===k).label;colorOf=k=>TYPES.find(x=>x.k===k).c;}
+  else if(gb==='theme'){groups=THEMES.slice();keyOf=c=>c.theme;labelOf=k=>k;}
+  else if(gb==='target'){groups=TARGETS.map(x=>x.k);keyOf=c=>c.target;labelOf=k=>TARGETS.find(x=>x.k===k).label;}
+  else{groups=STAGES.map(x=>x.k);keyOf=c=>c.stage;labelOf=k=>STAGES.find(x=>x.k===k).label;}
+  const vis=cards.filter(c=>!q||c.text.includes(q)||c.theme.includes(q)||(c.reason||'').includes(q));
+  document.getElementById('total').textContent=`${vis.length} / ${cards.length} 枚`;
+  const board=document.getElementById('board'); board.innerHTML='';
+  groups.forEach(g=>{
+    const items=vis.filter(c=>keyOf(c)===g);
+    if(!items.length && (gb==='theme')) return; // テーマは空列を省略
+    const col=document.createElement('div'); col.className='col';
+    const tcolor=(gb==='type')?colorOf(g):'var(--accB)';
+    col.innerHTML=`<h4 style="color:${tcolor}">${labelOf(g)}<span class="cnt">${items.length}</span></h4>`;
+    if(!items.length){col.innerHTML+=`<div class="empty">—</div>`;}
+    items.forEach(c=>{
+      const tc=TYPES.find(x=>x.k===c.type);
+      const card=document.createElement('div'); card.className='ic-card'; card.style.borderLeftColor=tc.c;
+      const tgt=TARGETS.find(x=>x.k===c.target);
+      card.innerHTML=`<div class="txt">${esc(c.text)}</div><div class="tags">
+        ${gb!=='type'?`<span class="tg" style="color:${tc.c}">${tc.label}</span>`:''}
+        ${gb!=='theme'?`<span class="tg">📂${c.theme}</span>`:''}
+        ${gb!=='target'?`<span class="tg">${tgt.label}</span>`:''}
+        ${gb!=='stage'?`<span class="tg">${STAGES.find(x=>x.k===c.stage).label}</span>`:''}
+        <span class="tg conf" style="color:${c.conf==='AI'?'var(--accB)':c.conf==='高'?'var(--acc)':c.conf==='中'?'var(--warn)':'var(--mut)'}">${c.conf==='AI'?'🤖AI':'確度'+c.conf}</span>
+      </div>`;
+      card.onclick=()=>openEdit(c.id);
+      col.appendChild(card);
+    });
+    board.appendChild(col);
+  });
+  if(!vis.length){board.innerHTML=`<div class="col"><div class="empty">該当カードなし</div></div>`;}
+}
+function esc(s){return s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
+
+/* ===== 編集モーダル ===== */
+let editId=null;
+function fillSel(id,arr,getK,getL){const s=document.getElementById(id);s.innerHTML=arr.map(x=>`<option value="${getK(x)}">${getL(x)}</option>`).join('')}
+fillSel('eType',TYPES,x=>x.k,x=>x.label);
+fillSel('eTheme',THEMES,x=>x,x=>x);
+fillSel('eTarget',TARGETS,x=>x.k,x=>x.label);
+fillSel('eStage',STAGES,x=>x.k,x=>x.label);
+function openEdit(id){
+  const c=cards.find(x=>x.id===id); if(!c)return; editId=id;
+  eText.value=c.text; eType.value=c.type; eTheme.value=c.theme; eTarget.value=c.target; eStage.value=c.stage;
+  document.getElementById('eReason').textContent='🔖 分類根拠：'+(c.reason||'-');
+  document.getElementById('editOverlay').classList.add('show');
+}
+function closeEdit(){document.getElementById('editOverlay').classList.remove('show');editId=null}
+document.getElementById('eSave').onclick=()=>{
+  const c=cards.find(x=>x.id===editId); if(!c)return;
+  c.text=eText.value.trim()||c.text; c.type=eType.value; c.theme=eTheme.value; c.target=eTarget.value; c.stage=eStage.value;
+  if(c.conf!=='AI')c.conf='手動'; save(); render(); closeEdit();
+};
+document.getElementById('eReclass').onclick=async()=>{
+  const c=cards.find(x=>x.id===editId); if(!c)return;
+  const btn=document.getElementById('eReclass'); btn.textContent='分類中…'; btn.disabled=true;
+  const cl=await classify(eText.value.trim()||c.text);
+  eType.value=cl.type;eTheme.value=cl.theme;eTarget.value=cl.target;eStage.value=cl.stage;
+  document.getElementById('eReason').textContent='🔖 分類根拠：'+cl.reason;
+  btn.textContent='🔄 AIで再分類'; btn.disabled=false;
+};
+document.getElementById('eDel').onclick=()=>{cards=cards.filter(x=>x.id!==editId);save();render();closeEdit()};
+document.getElementById('eCancel').onclick=closeEdit;
+document.getElementById('editOverlay').onclick=e=>{if(e.target.id==='editOverlay')closeEdit()};
+
+/* ===== 設定モーダル ===== */
+function openSet(){
+  document.getElementById('sMode').value=settings.mode;
+  document.getElementById('sKey').value=settings.key||'';
+  document.getElementById('sModel').value=settings.model;
+  document.getElementById('claudeFields').style.display=settings.mode==='claude'?'block':'none';
+  document.getElementById('setOverlay').classList.add('show');
+}
+document.getElementById('sMode').onchange=e=>{document.getElementById('claudeFields').style.display=e.target.value==='claude'?'block':'none'};
+document.getElementById('sSave').onclick=()=>{
+  settings.mode=document.getElementById('sMode').value;
+  settings.key=document.getElementById('sKey').value.trim();
+  settings.model=document.getElementById('sModel').value;
+  saveSet(); updateAiBadge(); document.getElementById('setOverlay').classList.remove('show');
+};
+document.getElementById('sCancel').onclick=()=>document.getElementById('setOverlay').classList.remove('show');
+document.getElementById('setOverlay').onclick=e=>{if(e.target.id==='setOverlay')document.getElementById('setOverlay').classList.remove('show')};
+function updateAiBadge(){
+  const b=document.getElementById('aiBadge');
+  if(settings.mode==='claude'&&settings.key){b.textContent='AI分類：Claude '+settings.model.split('-')[1];b.classList.add('on');}
+  else{b.textContent='AI分類：ローカル';b.classList.remove('on');}
+}
+
+/* ===== 入出力 ===== */
+function exportData(){
+  const md=cards.map(c=>`- [${TYPES.find(t=>t.k===c.type).label}] (${c.theme}/${c.target}/${c.stage}) ${c.text}`).join('\n');
+  const blob=new Blob([JSON.stringify({cards,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='idea-cards.json';a.click();
+  navigator.clipboard&&navigator.clipboard.writeText(md).catch(()=>{});
+}
+document.getElementById('expBtn').onclick=exportData;
+document.getElementById('impBtn').onclick=()=>document.getElementById('fileIn').click();
+document.getElementById('fileIn').onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader(); r.onload=()=>{try{const d=JSON.parse(r.result);
+    if(Array.isArray(d.cards)){cards=d.cards.concat(cards);save();render();}}catch(err){alert('読み込めませんでした')}};
+  r.readAsText(f); e.target.value='';
+};
+
+/* ===== サンプル / 全消去 ===== */
+const SAMPLE=[
+ '機能性表示で「筋肉を増やす」は言えないが「歩く・立つ力の維持」なら届出できる',
+ '男性は美容と言うと恥ずかしい → 「自己投資・コンディショニング」に言い換える',
+ 'ブラックジンジャーは脂肪と脚の筋力の両方で届出例がある二刀流成分',
+ '剤型はおにぎりやスープでもいいのでは？プロテイン以外で未利用の女性に届く',
+ 'エクオール×米セラミドの夜のホルモン美容ゼリーを試作してみる',
+ 'Lite¥3,480とPremium¥9,800、どっちを入口にすべきか？',
+ 'chocoZAP会員120万人・女性52%は最大の見込み客プール（事実）',
+ '更年期は美容問題でなく健康寿命の分岐点、という打ち出しに決定',
+];
+document.getElementById('sampleBtn').onclick=async()=>{for(const s of SAMPLE)await addCard(s)};
+document.getElementById('clearBtn').onclick=()=>{if(confirm('すべてのカードを消去しますか？（取り消せません）')){cards=[];save();render()}};
+
+/* ===== イベント ===== */
+document.getElementById('addBtn').onclick=async()=>{const v=input.value;input.value='';await addCard(v)};
+document.getElementById('bulkBtn').onclick=async()=>{const v=input.value;input.value='';await addBulk(v)};
+document.getElementById('input').addEventListener('keydown',async e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const v=input.value;input.value='';await addCard(v)}
+});
+document.getElementById('groupBy').onchange=render;
+document.getElementById('search').oninput=render;
+document.getElementById('setBtn').onclick=openSet;
+
+/* ===== 起動 ===== */
+load(); updateAiBadge();
+if(!cards.length){ (async()=>{for(const s of SAMPLE.slice(0,5))await addCard(s)})(); } else { render(); }
+</script>
+</body>
+</html>
