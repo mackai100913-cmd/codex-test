@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カード索引法スタジオ — 3×5の知識カードで壁打ち</title>
+<style>
+  :root{
+    --desk:#dcd2c0; --desk2:#d2c7b2; --wood:#5b4636; --wood2:#6f5642;
+    --card:#fffdf6; --rule:#c9dcec; --margin:#e6a7a7; --ink:#2a2723; --mut:#8c8470;
+    --tabc:#c7a35e; --acc:#2f7d4f; --acc2:#3a9d63; --line:#cfc6b2; --paper:#f4efe3;
+    --blue:#2f6da3; --warn:#b5762a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+    background:var(--desk);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+  header{padding:16px 16px 12px;background:linear-gradient(135deg,var(--wood),var(--wood2));color:#f3ead9;border-bottom:3px solid #43342a}
+  h1{margin:0;font-size:18px;letter-spacing:.02em}
+  .sub{color:#d8c9b4;font-size:12px;margin-top:3px}
+  .ns{margin-top:8px;padding:7px 11px;background:#4a3a2d;border:1px solid #7a6650;border-radius:8px;font-size:12px;color:#ecd9b8}
+  .ns b{color:#ffd98a}
+  .wrap{display:grid;grid-template-columns:1fr;gap:14px;max-width:1280px;margin:0 auto;padding:14px}
+  @media(min-width:980px){.wrap{grid-template-columns:1fr 340px}}
+  /* ---- 入力 ---- */
+  .panel{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .writecard{background:var(--card);border:1px solid #e3dcc8;border-radius:6px;padding:10px 12px 10px 44px;position:relative;
+    background-image:repeating-linear-gradient(var(--card),var(--card) 27px,#dce8f3 27px,#dce8f3 28px);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .writecard::before{content:'';position:absolute;left:32px;top:0;bottom:0;width:2px;background:var(--margin)}
+  textarea#input{width:100%;min-height:56px;line-height:28px;resize:vertical;border:none;outline:none;background:transparent;
+    color:var(--ink);font-size:15px;font-family:inherit}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  button{background:#efe7d6;color:var(--ink);border:1px solid var(--line);padding:8px 13px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit;transition:.15s}
+  button:hover{border-color:var(--acc);color:var(--acc)}
+  button.primary{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:700}
+  button.primary:hover{background:var(--acc2);color:#fff}
+  button.sm{padding:5px 9px;font-size:12px}
+  button.ghost{background:transparent;color:var(--mut);border-color:transparent}
+  .spacer{flex:1}
+  .aibadge{font-size:11px;padding:3px 9px;border-radius:20px;border:1px solid var(--line);color:var(--mut)}
+  .aibadge.on{background:#e6f3ea;color:var(--acc);border-color:var(--acc);font-weight:700}
+  /* ---- 角度バー ---- */
+  .angles{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:14px 0 6px}
+  .angles .lbl{font-size:12px;color:var(--mut);margin-right:2px}
+  .abtn{background:#e9e0cd;border:1px solid var(--line);border-radius:18px;padding:6px 12px;font-size:12.5px;cursor:pointer;white-space:nowrap;color:#5c5340}
+  .abtn:hover{border-color:var(--tabc)}
+  .abtn.on{background:var(--tabc);color:#3a2c12;border-color:var(--tabc);font-weight:700}
+  .customwrap{display:flex;gap:6px;align-items:center;margin:6px 0 2px;flex-wrap:wrap}
+  input.txt{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:13px;font-family:inherit}
+  .angledesc{font-size:12px;color:var(--mut);margin:4px 0 12px;padding:7px 11px;background:#ece4d3;border-radius:8px;border-left:3px solid var(--tabc)}
+  /* ---- セクション（カードボックス） ---- */
+  .sections{display:grid;gap:14px;grid-template-columns:1fr}
+  @media(min-width:620px){.sections{grid-template-columns:1fr 1fr}}
+  @media(min-width:980px){.sections{grid-template-columns:1fr 1fr 1fr}}
+  .sec{background:#cfc4ad;border:1px solid #b9ac90;border-radius:10px;padding:9px;min-height:60px}
+  .sectab{display:inline-flex;align-items:center;gap:6px;background:var(--tabc);color:#3a2c12;font-weight:700;font-size:12.5px;
+    padding:4px 12px;border-radius:8px 8px 0 0;margin:-9px 0 9px -9px;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+  .sectab .c{background:#3a2c12;color:#f0d99a;border-radius:10px;font-size:11px;padding:0 7px;margin-left:2px}
+  /* index card */
+  .icard{background:var(--card);border:1px solid #e3dcc8;border-radius:5px;margin-bottom:9px;position:relative;cursor:pointer;
+    padding:8px 11px 8px 40px;line-height:24px;font-size:13.5px;color:var(--ink);
+    background-image:repeating-linear-gradient(var(--card),var(--card) 23px,#e0eaf4 23px,#e0eaf4 24px);
+    box-shadow:0 1px 2px rgba(0,0,0,.1);transition:.12s;word-break:break-word;white-space:pre-wrap}
+  .icard::before{content:'';position:absolute;left:28px;top:0;bottom:0;width:2px;background:var(--margin);opacity:.7}
+  .icard:hover{transform:translateY(-2px) rotate(-.4deg);box-shadow:0 4px 10px rgba(0,0,0,.18)}
+  .icard .src{display:block;font-size:11px;color:var(--mut);margin-top:2px}
+  .icard .combo{display:block;font-size:11px;color:var(--acc);margin-top:3px}
+  .empty{color:#7d7561;font-size:12px;text-align:center;padding:10px 0}
+  .gaps{font-size:12px;color:var(--warn);margin:8px 0 0;padding:8px 11px;background:#f3ead3;border-radius:8px;border-left:3px solid var(--warn)}
+  /* ---- 壁打ちパネル ---- */
+  .spar{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;height:fit-content;position:sticky;top:12px}
+  .spar h3{margin:0 0 4px;font-size:14px;color:var(--wood)}
+  .spar .hint{font-size:11px;color:var(--mut);margin-bottom:8px}
+  .qa{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .log{display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto;padding:4px;margin-bottom:8px}
+  .msg{font-size:13px;padding:8px 11px;border-radius:11px;max-width:92%;white-space:pre-wrap;line-height:1.55}
+  .msg.user{align-self:flex-end;background:#dfeede;border:1px solid #bcd8bd}
+  .msg.ai{align-self:flex-start;background:#fff;border:1px solid var(--line)}
+  .msg.ai b{color:var(--acc)}
+  .sparin{display:flex;gap:6px}
+  .sparin input{flex:1}
+  /* ---- modal ---- */
+  .overlay{position:fixed;inset:0;background:rgba(40,30,20,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .overlay.show{display:flex}
+  .modal{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:560px;width:100%;max-height:90vh;overflow:auto}
+  .modal h3{margin:0 0 10px;font-size:15px}
+  .modal label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+  .modal textarea,.modal input,.modal select{width:100%;padding:9px 11px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:14px;font-family:inherit}
+  .modal textarea{min-height:70px;line-height:26px}
+  .mtable{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}
+  .mtable th,.mtable td{border:1px solid var(--line);padding:6px 8px;text-align:left}
+  .mtable th{background:#ece4d3;color:#6b6149;width:42%}
+  .mfoot{display:flex;gap:8px;margin-top:16px;align-items:center}
+  .foot{color:#6f6651;font-size:11px;text-align:center;padding:18px 12px}
+  code{background:#ece4d3;padding:1px 5px;border-radius:5px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🗃️ カード索引法スタジオ <span style="font-size:12px;color:#cbb89a">— 3×5の知識カードで“何度も索引”して壁打ち</span></h1>
+  <div class="sub">1事項=1カードで書く → テーマ別に分類 → <b>いろんな角度から何度も索引し直す</b> → AIと壁打ちして新結合を生む（ヤング式）</div>
+  <div class="ns">🌟 北極星：<b>若さを保つ（見た目＋中身）</b>／フレーム＝<b>D1 見える化＋D3 積立</b>。</div>
+</header>
+
+<div class="wrap">
+  <!-- 左：カード＋索引 -->
+  <div>
+    <div class="panel">
+      <div class="writecard"><textarea id="input" placeholder="特殊な知識・事実・思いつきを1枚に1事項だけ。例：『成長ホルモンの約7割は入眠後最初の深い睡眠で分泌される』"></textarea></div>
+      <div class="row">
+        <button class="primary" id="addBtn">＋ カードに書く</button>
+        <button id="bulkBtn" class="sm" title="各行を1枚ずつカード化">行ごとに束で追加</button>
+        <span class="spacer"></span>
+        <span class="aibadge" id="aiBadge">AI：ローカル</span>
+        <button class="ghost sm" id="setBtn">⚙ AI設定</button>
+        <button class="ghost sm" id="seedBtn">📚 知識を取り込む</button>
+        <button class="ghost sm" id="expBtn">⬇</button>
+        <button class="ghost sm" id="impBtn">⬆</button>
+        <button class="ghost sm" id="clearBtn">全消去</button>
+      </div>
+    </div>
+
+    <!-- 角度バー -->
+    <div class="angles" id="angleBar"><span class="lbl">索引する角度：</span></div>
+    <div class="customwrap">
+      <input class="txt" id="customAngle" placeholder="自由な角度を入力（例：価格で / 競合が嫌がる順 / 物語にできる順）" style="flex:1;min-width:160px">
+      <button class="sm" id="customBtn">🔎 この角度で索引</button>
+      <button class="sm" id="comboBtn">🔀 ランダム新結合</button>
+    </div>
+    <div class="angledesc" id="angleDesc"></div>
+
+    <div class="gaps" id="gaps" style="display:none"></div>
+    <div class="sections" id="sections"></div>
+  </div>
+
+  <!-- 右：壁打ち -->
+  <div class="spar">
+    <h3>🤝 AIと壁打ち</h3>
+    <div class="hint">手元のカードを踏まえてAIが反応します。新結合・挑発・抜けの指摘で“考えのキャッチボール”を。</div>
+    <div class="qa">
+      <button class="sm" data-q="combine">🔗 2枚で新結合</button>
+      <button class="sm" data-q="gap">🕳 抜けは？</button>
+      <button class="sm" data-q="provoke">🌶 挑発して</button>
+      <button class="sm" data-q="theme">🧭 次の一手</button>
+    </div>
+    <div class="log" id="log"></div>
+    <div class="sparin">
+      <input class="txt" id="sparInput" placeholder="壁打ちを書く…">
+      <button class="primary sm" id="sparSend">送る</button>
+    </div>
+  </div>
+</div>
+
+<!-- カード詳細（多角度索引ビュー） -->
+<div class="overlay" id="cardOverlay">
+  <div class="modal">
+    <h3>🗂 このカードを“いろんな角度から”見る</h3>
+    <label>内容（1事項）</label>
+    <textarea id="cText"></textarea>
+    <label>出典・メモ（任意）</label>
+    <input id="cSrc" placeholder="出典や補足">
+    <label>各角度での索引先</label>
+    <table class="mtable" id="cAngles"></table>
+    <div class="mfoot">
+      <button class="primary" id="cSave">保存</button>
+      <button id="cSpark">💥 このカードで壁打ち</button>
+      <span class="spacer"></span>
+      <button id="cDel" style="color:#a4442f;border-color:#d9b3a8">削除</button>
+      <button class="ghost" id="cCancel">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI設定 -->
+<div class="overlay" id="setOverlay">
+  <div class="modal">
+    <h3>⚙ AI設定</h3>
+    <label>モード</label>
+    <select id="sMode">
+      <option value="local">ローカル（オフライン・即時・無料）— 索引と壁打ちを内蔵ロジックで</option>
+      <option value="claude">Claude API（本物のAI索引・壁打ち。キーが必要）</option>
+    </select>
+    <div id="claudeFields" style="display:none">
+      <label>Anthropic APIキー（端末内のみ保存）</label>
+      <input id="sKey" placeholder="sk-ant-...">
+      <label>モデル</label>
+      <select id="sModel">
+        <option value="claude-haiku-4-5-20251001">claude-haiku-4-5（速い・安い／推奨）</option>
+        <option value="claude-sonnet-4-6">claude-sonnet-4-6（バランス）</option>
+        <option value="claude-opus-4-8">claude-opus-4-8（最高精度）</option>
+      </select>
+      <div class="hint" style="margin-top:6px">※ ブラウザから直接APIを呼びます（<code>anthropic-dangerous-direct-browser-access</code>）。キーはlocalStorageにのみ保存。共有PCでは使用後に「全消去」を。</div>
+    </div>
+    <div class="mfoot"><button class="primary" id="sSave">保存</button><button class="ghost" id="sCancel">閉じる</button></div>
+  </div>
+</div>
+
+<input type="file" id="fileIn" accept="application/json" style="display:none">
+<div class="foot">単一HTML・自己完結／データは端末のlocalStorageに保存 — カード索引法スタジオ</div>
+
+<script>
+/* ================= 角度（索引の切り口）の定義 =================
+   各角度 = セクション群。最初にキーワードが当たったセクションへ。当たらなければ末尾(未分類)。*/
+const ANGLES=[
+ {key:'theme',label:'🗂 テーマ別',emoji:'🗂',desc:'王道。内容のテーマでセクション分け（スクラップブックの目次）。',
+  sections:[
+   ['見える化・測定',['測定','検査','可視化','スコア','数値','見える','体組成','血圧','骨密度','握力','ダッシュボード','記録']],
+   ['積立・継続',['積立','貯','複利','満期','継続','習慣','毎日','定期','リピート','解約']],
+   ['製品・剤型',['錠剤','粉末','ゼリー','グミ','ドリンク','スープ','おにぎり','バー','剤型','形態','容器','味','スティック','ヨーグルト']],
+   ['成分・メカニズム',['エクオール','大豆','ブラックジンジャー','セラミド','コラーゲン','ビタミン','ロイシン','HMB','EAA','アスタキサンチン','GABA','成分','メカ','合成','分泌']],
+   ['市場・競合',['市場','億','規模','成長','シェア','競合','トレンド','需要','chocoZAP','ジム']],
+   ['法規・エビデンス',['薬機','景表','機能性表示','届出','関与成分','エビデンス','論文','RCT','GMP','根拠']],
+   ['ターゲット・動機',['女性','男性','年代','20代','30代','40代','50代','シニア','動機','見た目','モテ','清潔感','自己投資','悩み']],
+   ['価格・販売',['価格','円','LTV','CPA','サブスク','法人','割引','チャネル','獲得','アップセル']],
+   ['未分類',[]],
+  ]},
+ {key:'target',label:'🎯 対象別',emoji:'🎯',desc:'誰の話か。A女性／B男性／共通で束ねる。',
+  sections:[
+   ['🅰 女性(A)',['女性','エクオール','更年期','大豆','イソフラボン','骨','肌','閉経','ホルモン','コラーゲン','セラミド','糖化']],
+   ['🅱 男性(B)',['男性','ブラックジンジャー','筋','筋トレ','プロテイン','脂肪','EAA','HMB','サルコペニア','ジム','体脂肪']],
+   ['🤝 共通',[]],
+  ]},
+ {key:'kind',label:'🧩 情報の種類',emoji:'🧩',desc:'カードの性質。事実／気づき／アイデア／問い／タスク。半端な資料の正体が見える。',
+  sections:[
+   ['❓ 問い',['?','？','だろうか','べきか','どうやって','なぜ','可能か']],
+   ['📊 事実・データ',['%','％','億','万','件','人','倍','調査','出典','データ','判明','報告','によると','という論文']],
+   ['🛠 タスク',['する','やる','作る','試作','調べる','発注','選定','制作','実装','テスト','募集']],
+   ['💡 アイデア・気づき',[]],
+  ]},
+ {key:'mechanism',label:'🧬 老化メカニズム別',emoji:'🧬',desc:'体の中で何が起きているか。攻める標的でカードを束ねる。',
+  sections:[
+   ['🔆 紫外線・光老化',['紫外線','UV','光老化','SPF','PA','日焼け']],
+   ['🍬 糖化(AGEs)',['糖化','AGE','黄ぐすみ','血糖','高GI','GI食']],
+   ['💨 酸化',['酸化','活性酸素','抗酸化','ROS','アスタキサンチン']],
+   ['🌸 ホルモン',['ホルモン','エストロゲン','更年期','エクオール','プロゲステロン','閉経']],
+   ['💪 筋肉・サルコペニア',['筋','サルコペニア','ロイシン','HMB','EAA','プロテイン','握力','歩行','フレイル']],
+   ['🦴 骨・血管・代謝',['骨','血管','代謝','脂肪','ブラックジンジャー','体脂肪','コレステ']],
+   ['🛡 バリア・保湿',['セラミド','バリア','保湿','潤い','ヒアルロン','乾燥','ターンオーバー']],
+   ['😴 睡眠・腸・ストレス',['睡眠','成長ホルモン','腸','コルチゾール','ストレス']],
+   ['その他',[]],
+  ]},
+ {key:'motive',label:'❤️ 動機・感情別',emoji:'❤️',desc:'なぜ人はそれを買う/やるのか。感情で束ねるとコピーの種になる。',
+  sections:[
+   ['😎 モテ・見た目',['モテ','見た目','若見え','清潔感','印象','カッコ','美容']],
+   ['😟 不安・予防',['予防','不安','将来','寝たき','フレイル','リスク','衰え','老化']],
+   ['📈 自己投資・成長',['自己投資','コンディショ','成長','投資','メンテ','鍛え']],
+   ['🪶 手軽さ・続けやすさ',['手軽','簡単','続け','ながら','習慣','時短','溶け']],
+   ['🔬 安心・エビデンス',['エビデンス','根拠','医師','届出','論文','安全','透明','GMP']],
+   ['その他',[]],
+  ]},
+ {key:'time',label:'⏳ 時間軸',emoji:'⏳',desc:'いつの話か。今すぐ／近未来／将来構想で並べると停滞が見える。',
+  sections:[
+   ['🚀 今すぐ動く',['する','今週','今すぐ','着手','作る','発注','確定','決定','試作']],
+   ['🌗 近未来(数ヶ月)',['検証','テスト','モニター','調査','プロト','仮説','確かめ']],
+   ['🌌 将来構想',['将来','いつか','構想','〜では','〜できないか','ビジョン','北極星']],
+   ['未分類',[]],
+  ]},
+ {key:'form',label:'💊 剤型・形態別',emoji:'💊',desc:'モノの姿で束ねる。水平思考で“どんな形で世に出すか”を発想。',
+  sections:[
+   ['💊 錠剤・カプセル',['錠剤','カプセル','粒','タブレット']],
+   ['🥤 粉末・ドリンク',['粉末','ドリンク','スティック','溶か','溶け','飲む','ジュース','RTD']],
+   ['🍮 ゼリー・グミ',['ゼリー','グミ','チュアブル']],
+   ['🍙 食品(おにぎり/スープ等)',['おにぎり','スープ','味噌汁','バー','ヨーグルト','パン','麺','食品']],
+   ['🔬 検査・デバイス',['検査','キット','体組成','測定','デバイス','握力計','ソイチェック']],
+   ['その他',[]],
+  ]},
+];
+const ANGLE_BY=Object.fromEntries(ANGLES.map(a=>[a.key,a]));
+
+/* ================= 状態 ================= */
+let cards=[], settings={mode:'local',key:'',model:'claude-haiku-4-5-20251001'};
+let curAngle='theme', customAngleResult=null; // {label, map:{id->section}, sectionsOrder:[]}
+let chat=[];
+const LS_C='cardIndex.cards.v1', LS_S='cardIndex.settings.v1';
+function load(){try{cards=JSON.parse(localStorage.getItem(LS_C))||[]}catch(e){cards=[]}
+  try{settings=Object.assign(settings,JSON.parse(localStorage.getItem(LS_S))||{})}catch(e){}}
+function save(){localStorage.setItem(LS_C,JSON.stringify(cards))}
+function saveSet(){localStorage.setItem(LS_S,JSON.stringify(settings))}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+/* ================= 索引（セクション割り当て） ================= */
+function sectionOf(card,angle){
+  const t=(card.text+' '+(card.src||''));
+  for(const [label,kw] of angle.sections){ if(kw.length===0) continue; if(kw.some(k=>t.includes(k))) return label; }
+  return angle.sections[angle.sections.length-1][0]; // 末尾=未分類/共通/その他
+}
+/* ランダム新結合：カードを2-3枚ずつの“組”に強制的にまとめる */
+function comboIndex(){
+  const shuffled=[...cards].sort(()=>Math.random()-0.5);
+  const groups=[]; let i=0,n=1;
+  while(i<shuffled.length){ const size=(shuffled.length-i===4)?2:(2+Math.floor(Math.random()*2));
+    groups.push({label:'新結合の組 '+n++ ,ids:shuffled.slice(i,i+size).map(c=>c.id)}); i+=size; }
+  return groups;
+}
+
+/* ================= 描画 ================= */
+function esc(s){return (s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
+function cardHTML(c,extra){
+  return `<div class="icard" data-id="${c.id}">${esc(c.text)}${c.src?`<span class="src">— ${esc(c.src)}</span>`:''}${extra||''}</div>`;
+}
+function renderAngleBar(){
+  const bar=document.getElementById('angleBar');
+  bar.querySelectorAll('.abtn').forEach(x=>x.remove());
+  ANGLES.forEach(a=>{const b=document.createElement('span');b.className='abtn'+(curAngle===a.key&&!customAngleResult?' on':'');
+    b.textContent=a.label;b.onclick=()=>{curAngle=a.key;customAngleResult=null;render()};bar.appendChild(b)});
+}
+function render(){
+  renderAngleBar();
+  const wrap=document.getElementById('sections');
+  const gapsEl=document.getElementById('gaps'); gapsEl.style.display='none';
+  document.getElementById('angleDesc').textContent =
+    customAngleResult? `🔎 自由角度「${customAngleResult.label}」で索引中（${settings.mode==='claude'&&settings.key?'AI':'簡易'}）`
+    : ANGLE_BY[curAngle].desc;
+  if(!cards.length){wrap.innerHTML=`<div class="sec"><div class="empty">まだカードがありません。<br>「📚 知識を取り込む」でサンプルを入れてみてください。</div></div>`;return;}
+
+  // グループ化
+  let groups; // [{label, cards:[...]}]
+  if(comboMode){
+    groups=comboIndex().map(g=>({label:g.label, cards:g.ids.map(id=>cards.find(c=>c.id===id)).filter(Boolean), combo:true}));
+  }else if(customAngleResult){
+    const m=customAngleResult.map, order=customAngleResult.sectionsOrder;
+    const byLabel={}; order.forEach(l=>byLabel[l]=[]);
+    cards.forEach(c=>{const l=m[c.id]||order[order.length-1]||'未分類';(byLabel[l]=byLabel[l]||[]).push(c)});
+    groups=Object.keys(byLabel).map(l=>({label:l,cards:byLabel[l]})).filter(g=>g.cards.length);
+  }else{
+    const angle=ANGLE_BY[curAngle];
+    const order=angle.sections.map(s=>s[0]);
+    const byLabel={}; order.forEach(l=>byLabel[l]=[]);
+    cards.forEach(c=>{const l=sectionOf(c,angle);byLabel[l].push(c)});
+    // 空セクション＝盲点として提示
+    const empties=order.filter(l=>byLabel[l].length===0 && !/未分類|その他|共通/.test(l));
+    if(empties.length){gapsEl.style.display='block';gapsEl.innerHTML=`🕳 この角度で<b>カードが0枚のセクション</b>＝盲点かも：${empties.join(' / ')}`;}
+    groups=order.map(l=>({label:l,cards:byLabel[l]})).filter(g=>g.cards.length);
+  }
+  wrap.innerHTML=groups.map(g=>`<div class="sec">
+     <div class="sectab">${esc(g.label)}<span class="c">${g.cards.length}</span></div>
+     ${g.cards.map(c=>cardHTML(c, g.combo?'':'')).join('')||'<div class="empty">—</div>'}
+   </div>`).join('');
+  wrap.querySelectorAll('.icard').forEach(el=>el.onclick=()=>openCard(el.dataset.id));
+}
+let comboMode=false;
+
+/* ================= カード追加 ================= */
+function addCard(text,src){text=(text||'').trim();if(!text)return;cards.unshift({id:uid(),text,src:src||'',createdAt:Date.now()});save();render()}
+function addBulk(block){block.split('\n').map(s=>s.trim()).filter(Boolean).forEach(l=>addCard(l))}
+
+/* ================= カード詳細（多角度ビュー） ================= */
+let editId=null;
+function openCard(id){const c=cards.find(x=>x.id===id);if(!c)return;editId=id;comboMode=false;
+  document.getElementById('cText').value=c.text;document.getElementById('cSrc').value=c.src||'';
+  const rows=ANGLES.map(a=>`<tr><th>${a.label}</th><td>${esc(sectionOf(c,a))}</td></tr>`).join('');
+  document.getElementById('cAngles').innerHTML=rows;
+  document.getElementById('cardOverlay').classList.add('show');}
+function closeCard(){document.getElementById('cardOverlay').classList.remove('show');editId=null}
+document.getElementById('cSave').onclick=()=>{const c=cards.find(x=>x.id===editId);if(!c)return;
+  c.text=document.getElementById('cText').value.trim()||c.text;c.src=document.getElementById('cSrc').value.trim();save();render();closeCard()};
+document.getElementById('cDel').onclick=()=>{cards=cards.filter(x=>x.id!==editId);save();render();closeCard()};
+document.getElementById('cCancel').onclick=closeCard;
+document.getElementById('cardOverlay').onclick=e=>{if(e.target.id==='cardOverlay')closeCard()};
+document.getElementById('cSpark').onclick=()=>{const c=cards.find(x=>x.id===editId);if(!c)return;closeCard();
+  pushMsg('user',`このカードで壁打ち：「${c.text.slice(0,40)}」`);sparard('provoke',c)};
+
+/* ================= 壁打ち（AI/ローカル） ================= */
+function pushMsg(role,text){chat.push({role,text});const log=document.getElementById('log');
+  const d=document.createElement('div');d.className='msg '+role;d.innerHTML=role==='ai'?mdBold(text):esc(text);
+  log.appendChild(d);log.scrollTop=log.scrollHeight}
+function mdBold(s){return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/「(.+?)」/g,'<b>「$1」</b>')}
+function deckDigest(n){return cards.slice(0,n||40).map((c,i)=>`${i+1}. ${c.text}`).join('\n')}
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
+
+async function sparard(kind,focusCard){
+  if(settings.mode==='claude'&&settings.key){ return sparClaude(kind,focusCard); }
+  // --- ローカル壁打ち ---
+  if(!cards.length){pushMsg('ai','まずカードを書きましょう。1事項=1枚で、特殊な知識を貯めるほど新結合が生まれます。');return;}
+  let out='';
+  if(kind==='combine'){
+    const a=pick(cards),b=pick(cards.filter(c=>c.id!==a.id))||a;
+    out=`🔗 新結合してみます。\n「${a.text}」\n　×\n「${b.text}」\n→ もしこの2つを**1つの商品/施策**に強引にまとめたら？\n例えば「前者の仕組みを、後者のターゲットに、後者の形で届ける」とどうなる？ 突飛でいいので1行で書いてみて。`;
+  }else if(kind==='gap'){
+    const angle=ANGLE_BY[curAngle];const order=angle.sections.map(s=>s[0]);
+    const byL={};order.forEach(l=>byL[l]=0);cards.forEach(c=>byL[sectionOf(c,angle)]++);
+    const empt=order.filter(l=>byL[l]===0&&!/未分類|その他|共通/.test(l));
+    out=empt.length?`🕳 「${angle.label}」で**0枚のセクション**＝${empt.join('・')}。ここに知識が無いのは盲点かも。1枚埋めにいきませんか？`
+      :`この角度では空セクションなし。別角度（例：${pick(ANGLES.filter(a=>a.key!==curAngle)).label}）で索引し直すと、別の穴が見つかります。`;
+  }else if(kind==='provoke'){
+    const c=focusCard||pick(cards);
+    out=`🌶 挑発します。「${c.text}」について—\n・${pick(['逆に、これが完全に間違いだとしたら何が真実？','これを10倍に増幅したら商品はどう変わる？','これを最も嫌がる競合・顧客は誰？','これと真逆のことを言う人を1人想像して。','子ども/おばあちゃんに説明するとどう言う？'])}`;
+  }else if(kind==='theme'){
+    out=`🧭 いまカード${cards.length}枚。次の一手：\n・${pick(['一番"半端"なカードを選び、別角度で索引し直す','似た2枚を新結合して1つの商品仮説にする','空セクションを1枚埋める','"問い"のカードに、事実カードで答える'])}\n上の角度ボタンや🔀ランダム新結合も試してみて。`;
+  }else{ // free text
+    const c=pick(cards);
+    out=`なるほど。手元の「${c.text}」と絡めて考えると—\n${pick(['それは"見た目の若さ"と"中身の若さ"どちらに効く？','その話、A女性とB男性でどちら向き？','一次情報(出典)はある？無ければ"問い"カードにして検証へ。','D1見える化／D3積立のどちらに乗せられる？'])}`;
+  }
+  pushMsg('ai',out);
+}
+async function callClaude(messages,system,maxTok){
+  const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+    headers:{'content-type':'application/json','x-api-key':settings.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:settings.model,max_tokens:maxTok||500,system,messages})});
+  if(!res.ok)throw new Error('API '+res.status);
+  const d=await res.json();return (d.content||[]).map(b=>b.text||'').join('');
+}
+async function sparClaude(kind,focusCard){
+  const sys=`あなたはジェームス・W・ヤング『アイデアのつくり方』のカード索引法でアイデア出しを伴走する相棒。手元の知識カード(1事項=1枚)を素材に、新結合・挑発・抜けの指摘・問い返しで"壁打ち"する。事業文脈=機能性D2Cサプリ／北極星「若さを保つ(見た目+中身)」／A=女性エクオール・B=男性ブラックジンジャー／D1見える化+D3積立。回答は日本語で簡潔に(5行以内)、具体的に、相手の手が動く一言を必ず添える。`;
+  const instr={combine:'手元カードから意外な2枚を選び、強引に1つの商品/施策へ新結合して提案して。',
+    gap:'カード群に欠けている観点・盲点を1-2個指摘し、埋める問いを出して。',
+    provoke:(focusCard?`「${focusCard.text}」を挑発的に揺さぶって。`:'印象的なカードを1枚選び挑発的に揺さぶって。'),
+    theme:'今のカード状況を踏まえ、次にやるべき一手を1つだけ具体的に。'}[kind]||'';
+  pushMsg('ai','…考え中');
+  try{const txt=await callClaude([{role:'user',content:`# 手元のカード\n${deckDigest(50)}\n\n# 指示\n${instr}`}],sys);
+    chat.pop();document.getElementById('log').lastChild.remove();pushMsg('ai',txt);
+  }catch(e){chat.pop();document.getElementById('log').lastChild.remove();pushMsg('ai','⚠ APIエラー。設定のキー/モデルを確認するか、ローカルモードでお試しを。（'+e.message+'）');}
+}
+async function sparFree(text){
+  pushMsg('user',text);
+  if(settings.mode==='claude'&&settings.key){
+    const sys=`あなたはカード索引法でアイデア出しを伴走する相棒。手元の知識カードを素材に壁打ちする。日本語で簡潔(5行以内)・具体的に。`;
+    pushMsg('ai','…考え中');
+    try{const txt=await callClaude([{role:'user',content:`# 手元のカード\n${deckDigest(50)}\n\n# 相手の発言\n${text}`}],sys);
+      chat.pop();document.getElementById('log').lastChild.remove();pushMsg('ai',txt);}
+    catch(e){chat.pop();document.getElementById('log').lastChild.remove();pushMsg('ai','⚠ APIエラー：'+e.message);}
+  }else{sparard('free')}
+}
+
+/* ================= 自由角度で索引（AI or 簡易） ================= */
+async function indexByCustom(angleText){
+  angleText=angleText.trim();if(!angleText||!cards.length)return;
+  comboMode=false;
+  if(settings.mode==='claude'&&settings.key){
+    document.getElementById('angleDesc').textContent='🔎 AIが「'+angleText+'」で索引中…';
+    const sys=`あなたはカード索引法の分類器。与えた角度で、各カードを2〜6個のセクションに分類する。セクション名は角度に沿って自分で命名。出力はJSONのみ: {"sections":["名1",...],"assign":{"<カード番号>":"<セクション名>"}}`;
+    try{const txt=await callClaude([{role:'user',content:`# 角度\n${angleText}\n\n# カード（番号: 内容）\n${cards.map((c,i)=>`${i}: ${c.text}`).join('\n')}`}],sys,900);
+      const m=txt.match(/\{[\s\S]*\}/);const o=JSON.parse(m[0]);
+      const map={};cards.forEach((c,i)=>{map[c.id]=o.assign[String(i)]||(o.sections.slice(-1)[0]||'未分類')});
+      customAngleResult={label:angleText,map,sectionsOrder:o.sections};render();return;
+    }catch(e){document.getElementById('angleDesc').textContent='⚠ AI索引に失敗→簡易索引にします（'+e.message+'）';}
+  }
+  // 簡易：角度テキストの語と各カードの一致で粗くグルーピング（無理ならキーワード頻度で）
+  const words=angleText.split(/[\s、,／\/]+/).filter(w=>w.length>1);
+  const map={},secSet=new Set();
+  cards.forEach(c=>{const hit=words.find(w=>c.text.includes(w));const l=hit?('「'+hit+'」を含む'):'その他';map[c.id]=l;secSet.add(l)});
+  customAngleResult={label:angleText,map,sectionsOrder:[...secSet]};render();
+  pushMsg('ai',`「${angleText}」で簡易索引しました。語の一致で粗く分けています。AI設定をClaudeにすると、意味で深く索引できます。`);
+}
+
+/* ================= 入出力・サンプル ================= */
+const SEED=[
+ ['運動の第一目的は「健康」79.4%','スポーツ庁 令和4年度'],
+ ['筋トレに限ると第一目的は「見た目」が60%超','R&G 500人調査'],
+ ['筋肥大の3要素＝機械的張力・代謝ストレス・筋損傷',''],
+ ['機能性表示で「筋肉増強」は不可、「歩く・立つ力の維持」はOK','消費者庁'],
+ ['ロイシン40%配合EAAで歩行機能向上の届出','味の素アミノエール'],
+ ['ブラックジンジャーは脂肪と脚の筋力の二刀流で届出例あり',''],
+ ['chocoZAP会員120万人超・女性52%・美容目的','RIZAP'],
+ ['プロテイン市場約3,000億円、主力は30-40代女性、伸び代は未利用女性','富士経済'],
+ ['肌のバリアは角質細胞＋セラミド（レンガとモルタル構造）',''],
+ ['コラーゲン合成にはビタミンC＋鉄＋タンパク質が必要',''],
+ ['光老化＝肌老化の約8割（目安）、UVAがしわ・たるみを作る',''],
+ ['糖化AGEsが黄ぐすみ・たるみの原因、一度できると分解されにくい',''],
+ ['成長ホルモンの約7割は入眠後最初の深い睡眠で分泌',''],
+ ['高GI食はニキビを悪化させる（RCTで実証）','JAAD'],
+ ['腸-肌相関：腸内環境の乱れが肌荒れに関与する',''],
+ ['更年期のエストロゲン低下でコラーゲン産生が落ち肌が菲薄化',''],
+ ['エクオール産生菌を持つ日本人女性は約2人に1人',''],
+ ['美容医療6,310億円、利用率は20代女性が最高23.2%','リクルート'],
+ ['男性リピート率65.8%＞女性44.2%（一度始めるとハマる）','美容センサス'],
+ ['美容食品の剤型はドリンクが8割、ゼリー・グミが伸長',''],
+ ['男性は「美容」が恥ずかしい→「自己投資・コンディショニング」に言い換え',''],
+ ['北極星＝若さを保つ（見た目＋中身の二階建て）',''],
+];
+document.getElementById('seedBtn').onclick=()=>{SEED.forEach(s=>cards.push({id:uid(),text:s[0],src:s[1],createdAt:Date.now()}));save();render()};
+document.getElementById('clearBtn').onclick=()=>{if(confirm('すべてのカードを消去しますか？')){cards=[];save();render()}};
+document.getElementById('expBtn').onclick=()=>{const blob=new Blob([JSON.stringify({cards},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='index-cards.json';a.click()};
+document.getElementById('impBtn').onclick=()=>document.getElementById('fileIn').click();
+document.getElementById('fileIn').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{const d=JSON.parse(r.result);if(Array.isArray(d.cards)){cards=d.cards.concat(cards);save();render()}}catch(err){alert('読み込めませんでした')}};
+  r.readAsText(f);e.target.value=''};
+
+/* ================= AI設定 ================= */
+function updateBadge(){const b=document.getElementById('aiBadge');
+  if(settings.mode==='claude'&&settings.key){b.textContent='AI：Claude '+settings.model.split('-')[1];b.classList.add('on')}
+  else{b.textContent='AI：ローカル';b.classList.remove('on')}}
+document.getElementById('setBtn').onclick=()=>{document.getElementById('sMode').value=settings.mode;
+  document.getElementById('sKey').value=settings.key||'';document.getElementById('sModel').value=settings.model;
+  document.getElementById('claudeFields').style.display=settings.mode==='claude'?'block':'none';
+  document.getElementById('setOverlay').classList.add('show')};
+document.getElementById('sMode').onchange=e=>document.getElementById('claudeFields').style.display=e.target.value==='claude'?'block':'none';
+document.getElementById('sSave').onclick=()=>{settings.mode=document.getElementById('sMode').value;
+  settings.key=document.getElementById('sKey').value.trim();settings.model=document.getElementById('sModel').value;
+  saveSet();updateBadge();document.getElementById('setOverlay').classList.remove('show')};
+document.getElementById('sCancel').onclick=()=>document.getElementById('setOverlay').classList.remove('show');
+document.getElementById('setOverlay').onclick=e=>{if(e.target.id==='setOverlay')document.getElementById('setOverlay').classList.remove('show')};
+
+/* ================= イベント ================= */
+document.getElementById('addBtn').onclick=()=>{const v=input.value;input.value='';comboMode=false;addCard(v)};
+document.getElementById('bulkBtn').onclick=()=>{const v=input.value;input.value='';comboMode=false;addBulk(v)};
+document.getElementById('input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const v=input.value;input.value='';comboMode=false;addCard(v)}});
+document.getElementById('customBtn').onclick=()=>{comboMode=false;indexByCustom(document.getElementById('customAngle').value)};
+document.getElementById('customAngle').addEventListener('keydown',e=>{if(e.key==='Enter'){comboMode=false;indexByCustom(e.target.value)}});
+document.getElementById('comboBtn').onclick=()=>{comboMode=true;customAngleResult=null;render()};
+document.querySelectorAll('.qa button').forEach(b=>b.onclick=()=>{pushMsg('user',b.textContent);sparard(b.dataset.q)});
+document.getElementById('sparSend').onclick=()=>{const v=document.getElementById('sparInput').value.trim();if(!v)return;document.getElementById('sparInput').value='';sparFree(v)};
+document.getElementById('sparInput').addEventListener('keydown',e=>{if(e.key==='Enter'){const v=e.target.value.trim();if(!v)return;e.target.value='';sparFree(v)}});
+
+/* ================= 起動 ================= */
+load();updateBadge();
+if(!cards.length){SEED.forEach(s=>cards.push({id:uid(),text:s[0],src:s[1],createdAt:Date.now()}));save()}
+render();
+pushMsg('ai','ようこそ。これは**カード索引法**の道具です。1事項=1枚で知識を貯め、上の**角度ボタン**で何度も索引し直すと、同じカードから別の地図が見えます。🔀ランダム新結合や、左のボタンで私と壁打ちしましょう。');
+</script>
+</body>
+</html>
