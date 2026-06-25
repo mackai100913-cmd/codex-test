@@ -64,6 +64,11 @@
   .icard:hover{transform:translateY(-2px) rotate(-.4deg);box-shadow:0 4px 10px rgba(0,0,0,.18)}
   .icard .src{display:block;font-size:11px;color:var(--mut);margin-top:2px}
   .icard .combo{display:block;font-size:11px;color:var(--acc);margin-top:3px}
+  .icard.hypo{border-color:#bcd8bd;background-image:repeating-linear-gradient(#f3f9f0,#f3f9f0 23px,#d6e8d6 23px,#d6e8d6 24px)}
+  .icard.hypo::before{background:#9cc79e}
+  .icard .hb{display:inline-block;font-size:10px;color:#2f7d4f;border:1px solid #bcd8bd;border-radius:6px;padding:0 5px;margin-right:5px;background:#e6f3ea;vertical-align:1px}
+  .genbtn{margin-top:2px;width:100%;background:#e6f3ea;border:1px dashed #9cc79e;color:#2f7d4f;font-weight:700}
+  .genbtn:hover{background:#2f7d4f;color:#fff;border-style:solid}
   .empty{color:#7d7561;font-size:12px;text-align:center;padding:10px 0}
   .gaps{font-size:12px;color:var(--warn);margin:8px 0 0;padding:8px 11px;background:#f3ead3;border-radius:8px;border-left:3px solid var(--warn)}
   /* ---- 壁打ちパネル ---- */
@@ -138,6 +143,7 @@
     <div class="hint">手元のカードを踏まえてAIが反応します。新結合・挑発・抜けの指摘で“考えのキャッチボール”を。</div>
     <div class="qa">
       <button class="sm" data-q="combine">🔗 2枚で新結合</button>
+      <button class="sm" data-q="forge">💥 新結合をカード化</button>
       <button class="sm" data-q="gap">🕳 抜けは？</button>
       <button class="sm" data-q="provoke">🌶 挑発して</button>
       <button class="sm" data-q="theme">🧭 次の一手</button>
@@ -295,13 +301,14 @@ function comboIndex(){
 /* ================= 描画 ================= */
 function esc(s){return (s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
 function cardHTML(c,extra){
-  return `<div class="icard" data-id="${c.id}">${esc(c.text)}${c.src?`<span class="src">— ${esc(c.src)}</span>`:''}${extra||''}</div>`;
+  const hypo=c.kind==='hypothesis';
+  return `<div class="icard${hypo?' hypo':''}" data-id="${c.id}">${hypo?'<span class="hb">🌱仮説</span>':''}${esc(c.text)}${c.src?`<span class="src">— ${esc(c.src)}</span>`:''}${extra||''}</div>`;
 }
 function renderAngleBar(){
   const bar=document.getElementById('angleBar');
   bar.querySelectorAll('.abtn').forEach(x=>x.remove());
   ANGLES.forEach(a=>{const b=document.createElement('span');b.className='abtn'+(curAngle===a.key&&!customAngleResult?' on':'');
-    b.textContent=a.label;b.onclick=()=>{curAngle=a.key;customAngleResult=null;render()};bar.appendChild(b)});
+    b.textContent=a.label;b.onclick=()=>{curAngle=a.key;customAngleResult=null;comboMode=false;render()};bar.appendChild(b)});
 }
 function render(){
   renderAngleBar();
@@ -315,7 +322,9 @@ function render(){
   // グループ化
   let groups; // [{label, cards:[...]}]
   if(comboMode){
-    groups=comboIndex().map(g=>({label:g.label, cards:g.ids.map(id=>cards.find(c=>c.id===id)).filter(Boolean), combo:true}));
+    if(!comboGroups) comboGroups=comboIndex();
+    groups=comboGroups.map(g=>({label:g.label, ids:g.ids, generated:g.generated, combo:true,
+      cards:g.ids.map(id=>cards.find(c=>c.id===id)).filter(Boolean)})).filter(g=>g.cards.length);
   }else if(customAngleResult){
     const m=customAngleResult.map, order=customAngleResult.sectionsOrder;
     const byLabel={}; order.forEach(l=>byLabel[l]=[]);
@@ -333,11 +342,13 @@ function render(){
   }
   wrap.innerHTML=groups.map(g=>`<div class="sec">
      <div class="sectab">${esc(g.label)}<span class="c">${g.cards.length}</span></div>
-     ${g.cards.map(c=>cardHTML(c, g.combo?'':'')).join('')||'<div class="empty">—</div>'}
+     ${g.cards.map(c=>cardHTML(c)).join('')||'<div class="empty">—</div>'}
+     ${(g.combo && !g.generated && g.cards.length>=2)?`<button class="sm genbtn" data-ids="${g.ids.join(',')}">💥 この組から商品仮説を生む</button>`:''}
    </div>`).join('');
   wrap.querySelectorAll('.icard').forEach(el=>el.onclick=()=>openCard(el.dataset.id));
+  wrap.querySelectorAll('.genbtn').forEach(el=>el.onclick=e=>{e.stopPropagation();genFromIds(el.dataset.ids.split(','))});
 }
-let comboMode=false;
+let comboMode=false, comboGroups=null;
 
 /* ================= カード追加 ================= */
 function addCard(text,src){text=(text||'').trim();if(!text)return;cards.unshift({id:uid(),text,src:src||'',createdAt:Date.now()});save();render()}
@@ -366,6 +377,39 @@ function pushMsg(role,text){chat.push({role,text});const log=document.getElement
 function mdBold(s){return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/「(.+?)」/g,'<b>「$1」</b>')}
 function deckDigest(n){return cards.slice(0,n||40).map((c,i)=>`${i+1}. ${c.text}`).join('\n')}
 function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
+
+/* ===== 新結合 → 商品仮説カードを生成して山に戻す（雪だるま式） ===== */
+function shorten(s,n){n=n||22;return s.length>n?s.slice(0,n)+'…':s}
+async function generateHypothesis(src){
+  const a=src[0].text, b=src[1].text, c=src[2]?src[2].text:null;
+  if(settings.mode==='claude'&&settings.key){
+    const sys=`あなたはカード索引法でアイデアを生む装置。与えられた2〜3枚の知識カードを強引に新結合し、機能性D2Cサプリの具体的な「商品仮説」を1つ作る。北極星=若さを保つ(見た目+中身)／A=女性エクオール・B=男性ブラックジンジャー／D1見える化+D3積立。商品/施策の姿が浮かぶ30〜70字の一文で、断定形。出力は仮説本文のみ(前置き不要)。`;
+    try{const txt=await callClaude([{role:'user',content:`# 素材カード\n${src.map((x,i)=>`${i+1}. ${x.text}`).join('\n')}\n\n# 指示\nこれらを新結合した商品仮説を1つ。`}],sys,300);
+      return txt.trim().replace(/^[「『]|[」』]$/g,'');}catch(e){/* fallthrough */}
+  }
+  // ローカル：テンプレで“問いの形の仮説”を作る
+  const pats=[
+    `【仮説】「${shorten(a)}」を、「${shorten(b)}」の文脈に応用した商品はどうか？`,
+    `【仮説】「${shorten(a)}」×「${shorten(b)}」を1つにまとめると、どんな商品になる？`,
+    `【仮説】「${shorten(b)}」を踏まえ、「${shorten(a)}」を武器にした施策を作れないか？`,
+  ];
+  let out=pats[Math.floor(Math.random()*pats.length)];
+  if(c) out+=`（さらに「${shorten(c,16)}」も掛け合わせる）`;
+  return out;
+}
+async function genFromIds(idsArr){
+  const src=idsArr.map(id=>cards.find(c=>c.id===id)).filter(Boolean);
+  if(src.length<2){pushMsg('ai','新結合には2枚以上必要です。');return;}
+  pushMsg('ai','🌱 新結合から仮説を生成中…');
+  const text=await generateHypothesis(src);
+  const log=document.getElementById('log'); if(log.lastChild) log.lastChild.remove(); chat.pop();
+  const parents=src.map(c=>shorten(c.text,12)).join(' × ');
+  const nc={id:uid(),text,src:'🌱新結合: '+parents,kind:'hypothesis',createdAt:Date.now()};
+  cards.unshift(nc); save();
+  if(comboMode&&comboGroups){ comboGroups.unshift({label:'🌱 生成された仮説',ids:[nc.id,...idsArr],generated:true}); }
+  render();
+  pushMsg('ai',`🌱 新しい**商品仮説カード**を山に戻しました：\n「${text}」\nこれも索引対象です。別角度で索引し直すと、また違う隣人と結合できます（雪だるま式）。`);
+}
 
 async function sparard(kind,focusCard){
   if(settings.mode==='claude'&&settings.key){ return sparClaude(kind,focusCard); }
@@ -497,8 +541,10 @@ document.getElementById('bulkBtn').onclick=()=>{const v=input.value;input.value=
 document.getElementById('input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const v=input.value;input.value='';comboMode=false;addCard(v)}});
 document.getElementById('customBtn').onclick=()=>{comboMode=false;indexByCustom(document.getElementById('customAngle').value)};
 document.getElementById('customAngle').addEventListener('keydown',e=>{if(e.key==='Enter'){comboMode=false;indexByCustom(e.target.value)}});
-document.getElementById('comboBtn').onclick=()=>{comboMode=true;customAngleResult=null;render()};
-document.querySelectorAll('.qa button').forEach(b=>b.onclick=()=>{pushMsg('user',b.textContent);sparard(b.dataset.q)});
+document.getElementById('comboBtn').onclick=()=>{comboMode=true;customAngleResult=null;comboGroups=comboIndex();render()};
+document.querySelectorAll('.qa button').forEach(b=>b.onclick=()=>{pushMsg('user',b.textContent);
+  if(b.dataset.q==='forge'){const two=[...cards].sort(()=>Math.random()-0.5).slice(0,2).map(c=>c.id);genFromIds(two);}
+  else sparard(b.dataset.q);});
 document.getElementById('sparSend').onclick=()=>{const v=document.getElementById('sparInput').value.trim();if(!v)return;document.getElementById('sparInput').value='';sparFree(v)};
 document.getElementById('sparInput').addEventListener('keydown',e=>{if(e.key==='Enter'){const v=e.target.value.trim();if(!v)return;e.target.value='';sparFree(v)}});
 
