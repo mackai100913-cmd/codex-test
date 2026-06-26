@@ -66,7 +66,10 @@
   .icard .combo{display:block;font-size:11px;color:var(--acc);margin-top:3px}
   .icard.hypo{border-color:#bcd8bd;background-image:repeating-linear-gradient(#f3f9f0,#f3f9f0 23px,#d6e8d6 23px,#d6e8d6 24px)}
   .icard.hypo::before{background:#9cc79e}
+  .icard.idea{border-color:#e3cf9a;background-image:repeating-linear-gradient(#fffaf0,#fffaf0 23px,#efe1c2 23px,#efe1c2 24px)}
+  .icard.idea::before{background:#d9b86a}
   .icard .hb{display:inline-block;font-size:10px;color:#2f7d4f;border:1px solid #bcd8bd;border-radius:6px;padding:0 5px;margin-right:5px;background:#e6f3ea;vertical-align:1px}
+  .icard .hb.ib{color:#9a6a18;border-color:#e3cf9a;background:#f6ecd2}
   .genbtn{margin-top:2px;width:100%;background:#e6f3ea;border:1px dashed #9cc79e;color:#2f7d4f;font-weight:700}
   .genbtn:hover{background:#2f7d4f;color:#fff;border-style:solid}
   .empty{color:#7d7561;font-size:12px;text-align:center;padding:10px 0}
@@ -118,6 +121,7 @@
         <span class="aibadge" id="aiBadge">AI：ローカル</span>
         <button class="ghost sm" id="setBtn">⚙ AI設定</button>
         <button class="ghost sm" id="seedBtn">📚 知識を取り込む</button>
+        <button class="ghost sm" id="ideasBtn">💡 アイデア集</button>
         <button class="ghost sm" id="expBtn">⬇</button>
         <button class="ghost sm" id="impBtn">⬆</button>
         <button class="ghost sm" id="clearBtn">全消去</button>
@@ -285,6 +289,7 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 
 /* ================= 索引（セクション割り当て） ================= */
 function sectionOf(card,angle){
+  if(angle.key==='kind'&&(card.kind==='hypothesis'||card.kind==='idea')) return '💡 アイデア・気づき';
   const t=(card.text+' '+(card.src||''));
   for(const [label,kw] of angle.sections){ if(kw.length===0) continue; if(kw.some(k=>t.includes(k))) return label; }
   return angle.sections[angle.sections.length-1][0]; // 末尾=未分類/共通/その他
@@ -301,8 +306,9 @@ function comboIndex(){
 /* ================= 描画 ================= */
 function esc(s){return (s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
 function cardHTML(c,extra){
-  const hypo=c.kind==='hypothesis';
-  return `<div class="icard${hypo?' hypo':''}" data-id="${c.id}">${hypo?'<span class="hb">🌱仮説</span>':''}${esc(c.text)}${c.src?`<span class="src">— ${esc(c.src)}</span>`:''}${extra||''}</div>`;
+  const hypo=c.kind==='hypothesis', idea=c.kind==='idea';
+  const badge=hypo?'<span class="hb">🌱仮説</span>':idea?'<span class="hb ib">💡案</span>':'';
+  return `<div class="icard${hypo?' hypo':''}${idea?' idea':''}" data-id="${c.id}">${badge}${esc(c.text)}${c.src?`<span class="src">— ${esc(c.src)}</span>`:''}${extra||''}</div>`;
 }
 function renderAngleBar(){
   const bar=document.getElementById('angleBar');
@@ -512,6 +518,80 @@ const SEED=[
  ['北極星＝若さを保つ（見た目＋中身の二階建て）',''],
 ];
 document.getElementById('seedBtn').onclick=()=>{SEED.forEach(s=>cards.push({id:uid(),text:s[0],src:s[1],createdAt:Date.now()}));save();render()};
+
+/* ==== IDEAS_50 / PRODUCT_IDEAS 一括取り込み ==== */
+const IMP_CATS=["見える化・測定","積立・投資","継続・習慣化","パーソナライズ","コミュニティ","製品形態・UX","信頼・エビデンス","課金・販売"];
+const IMP_PAT={P1:"見えない状態を1数値に可視化",P2:"行動経済学(損失回避)で継続",P3:"将来資産の積立メタファー",P4:"習慣をゲーム化し保護を売る",P5:"成果保証と伴走で高単価化",P6:"測ってあなた専用にする",P7:"データの物語化で拡散",P8:"ソーシャル・リーダーボード",P9:"会員制で関係を固定",P10:"実利と大義の二重動機",P11:"統合(足し算)で客単価↑",P12:"ハードで囲い消耗品で稼ぐ",P13:"行為をエンタメ化",P14:"定期検診をブランド体験に",P15:"家族・ペアでLTVを束ねる",P16:"盛らない潔さで信頼",P17:"数値の透明性で差別化",P18:"独自指標を発明し資産化"};
+const IMP_IDEAS=[
+ [1,0,"A","ソイチェック同梱：初回キットでエクオール産生能を測り、結果で配合を出し分け","P6"],
+ [2,0,"共通","「健康寿命スコア」を独自開発：複数指標を1つの数値に集約し毎月提示","P1"],
+ [3,0,"B","体組成計と自動連携し、筋量・体脂肪でBの効果を可視化","P12"],
+ [4,0,"A","LINE月1問診→血管年齢・骨密度の推定スコア化","P14"],
+ [5,0,"共通","ビフォーアフターを写真でなく「数値カルテ」で毎月発行","P5"],
+ [6,0,"A","飲んだ日を記録→「体内エクオール推定量」を可視化","P1"],
+ [7,0,"共通","年1回「あなたの老化ドック」郵送検査をサブスク特典で無料提供","P14"],
+ [8,0,"共通","摂取ログ×活動量で「今月どれだけ健康寿命を守れたか」レポート","P7"],
+ [9,0,"B","握力計を初回同梱、毎月の握力推移で“貯筋”を見せる","P12"],
+ [10,0,"共通","改善を「老化を◯ヶ月巻き戻した」と翻訳表示","P3"],
+ [11,1,"共通","「健康寿命つみたて」：継続を“年数の積立”として通帳UIで見せる","P3"],
+ [12,1,"共通","継続月数で「複利」的に特典が増える","P3"],
+ [13,1,"共通","解約=「積立の取り崩し」と表現し損失回避を効かせる","P2"],
+ [14,1,"共通","「将来の医療費をいくら節約したか」を試算提示","P10"],
+ [15,1,"共通","「健康寿命の家族口座」で世帯積立","P15"],
+ [16,1,"共通","12ヶ月で「満期」セレモニー＋記念カルテ","P3"],
+ [17,2,"共通","「飲んだ」ストリーク：途切れそうだと通知で軽くプレッシャー","P4"],
+ [18,2,"共通","「飲み忘れ保護」アイテム＝上位プランで連続記録を守れる","P4"],
+ [19,2,"共通","ステータス制(ブルー→ブロンズ…)で継続者ほど価格が下がる","P2"],
+ [20,2,"共通","先に割引を適用し「失わないために続ける」設計","P2"],
+ [21,2,"共通","週次チャレンジ(飲む＋歩く)達成でリワード","P2"],
+ [22,2,"共通","歯磨きの隣に置くパッケージで朝ルーティンに寄生","P16"],
+ [23,2,"共通","開封音・色変化など飲む行為を小さく儀式化","P13"],
+ [24,3,"A","産生できる人/できない人で別処方(できない人はエクオール直接配合)","P6"],
+ [25,3,"共通","問診×AIで「老化タイプ」判定→配合最適化","P6"],
+ [26,3,"共通","季節・体調で配合が変わる動的サブスク","P6"],
+ [27,3,"共通","年齢進行に合わせ処方が“進級”","P3"],
+ [28,3,"B","男性の働き方(デスク/外回り)で配合分岐","P6"],
+ [29,3,"共通","夫婦ペア診断→2人分を最適化同梱","P15"],
+ [30,4,"共通","「健康寿命ランキング」を匿名で同年代と比較","P8"],
+ [31,4,"共通","チーム積立で継続率を競う","P8"],
+ [32,4,"共通","SNS用「老化巻き戻しカード」を自動生成","P7"],
+ [33,4,"共通","卒業生コミュニティ(◯年継続者の会)でステータス可視化","P9"],
+ [34,4,"共通","医師・専門家のライブ相談を会員特典に","P5"],
+ [35,5,"共通","錠剤でなく「朝の1スティック」(水なし粉末/ゼリー)","P6"],
+ [36,5,"A","Aは“飲む＋塗る”内外セット(更年期の乾燥ケアも／主役は健康寿命)","P11"],
+ [37,5,"B","Bはコーヒー/プロテインに溶かす形態で習慣に寄生","P13"],
+ [38,5,"共通","28日カレンダーパック(日付入り)で飲み忘れ防止","P4"],
+ [39,5,"共通","容器をスマート化(開封回数をBluetooth記録)","P12"],
+ [40,5,"共通","旅行用ミニ/職場ストックなど“続く”ためのライン拡張","P15"],
+ [41,6,"共通","全ロット第三者検査・GMP・成分量公開を前面に","P17"],
+ [42,6,"共通","届出根拠論文を読める「エビデンス図書館」公開","P17"],
+ [43,6,"共通","学術提携で独自「健康年齢」指標を開発しブランド資産化","P18"],
+ [44,6,"共通","医師監修＋効果実感アンケートを毎月公開","P5"],
+ [45,7,"共通","「測定キット＋初月分」の体験ボックスを入口(フロント)に","P6"],
+ [46,7,"共通","年会費メンバーシップ＝割引＋年1検査＋相談","P9"],
+ [47,7,"共通","成果コミット型：規定回数測って改善なければ返金","P5"],
+ [48,7,"共通","健康行動でポイント→次回割引","P2"],
+ [49,7,"B","法人福利厚生として企業へ(働き盛り男性Bと好相性)","P2"],
+ [50,7,"共通","「2軸セット」夫婦/カップル定期＝A＋Bでまとめ、LTV最大化","P15"],
+];
+const IMP_PRODUCTS=[
+ ["A-1 夜のホルモン美容ゼリー：エクオール＋米由来セラミド＋VCのスティックゼリー。夜の肌修復に乗せた“夜美容”","A"],
+ ["A-2 飲む味噌汁／豆乳ポタージュ：エクオール＋大豆たんぱく＋Ca＋VDの朝食置換スープ","A"],
+ ["A-3 骨と血管の積立タブレット：エクオール＋K2＋D＋Ca、ソイチェック同梱で見える化","A"],
+ ["B-1 クリアに溶ける動ける一杯：ブラックジンジャー＋EAA＋アスタキサンチンの無糖クリア粉末","B"],
+ ["B-2 鍛える人の高たんぱく塩むすび：高たんぱく米＋別添ブラックジンジャー、ジム自販機で販売","B"],
+ ["B-3 夜の回復ポタージュ：高たんぱく＋ブラックジンジャー＋GABAで“疲れない中身の若さ”","B"],
+ ["C-1 歩く力ゼリー：ロイシン40%配合EAA＋VD、ロコモ予防のブルーオーシャン","共通"],
+];
+document.getElementById('ideasBtn').onclick=()=>{
+  const seen=new Set(cards.map(c=>c.text));
+  let n=0;
+  IMP_IDEAS.forEach(it=>{ if(seen.has(it[3]))return; cards.push({id:uid(),text:it[3],
+    src:`💡案#${it[0]}・${IMP_CATS[it[1]]}・🃏${it[4]} ${IMP_PAT[it[4]]}・〔${it[2]}〕`,kind:'idea',createdAt:Date.now()}); n++; });
+  IMP_PRODUCTS.forEach(p=>{ if(seen.has(p[0]))return; cards.push({id:uid(),text:p[0],src:`🧴商品案・〔${p[1]}〕`,kind:'idea',createdAt:Date.now()}); n++; });
+  save();render();
+  pushMsg('ai',`💡 アイデア集を取り込みました（新規${n}枚：50案＋商品案7）。これで素材が厚くなりました。🔀ランダム新結合や角度索引で、知識×アイデアの意外な組み合わせを探しましょう。`);
+};
 document.getElementById('clearBtn').onclick=()=>{if(confirm('すべてのカードを消去しますか？')){cards=[];save();render()}};
 document.getElementById('expBtn').onclick=()=>{const blob=new Blob([JSON.stringify({cards},null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='index-cards.json';a.click()};
