@@ -11,6 +11,9 @@
     --warn:#fbbf24; --chip:#2a3540; --vio:#a78bfa; --org:#fb923c; --red:#f87171;
   }
   *{box-sizing:border-box}
+  :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+  button:active{transform:translateY(1px)}
+  @media(pointer:coarse){button{min-height:40px}}
   body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
     background:var(--bg);color:var(--txt);line-height:1.6;-webkit-font-smoothing:antialiased}
   header{padding:18px 16px 12px;background:linear-gradient(135deg,#13351f,#0f1419);border-bottom:1px solid var(--line)}
@@ -300,7 +303,7 @@ async function classify(text){
 let cards=[], settings={mode:'local',key:'',model:'claude-haiku-4-5-20251001'};
 const LS_C='ideaStudio.cards.v1', LS_S='ideaStudio.settings.v1';
 function load(){
-  try{cards=JSON.parse(localStorage.getItem(LS_C))||[]}catch(e){cards=[]}
+  try{const raw=JSON.parse(localStorage.getItem(LS_C))||[];cards=Array.isArray(raw)?raw.map(normalizeCard).filter(Boolean):[]}catch(e){cards=[]}
   try{settings=Object.assign(settings,JSON.parse(localStorage.getItem(LS_S))||{})}catch(e){}
 }
 function save(){localStorage.setItem(LS_C,JSON.stringify(cards))}
@@ -345,7 +348,7 @@ function buildCoach(){
   }
   // 未解決の問い
   const qs=cards.filter(c=>c.type==='question');
-  if(qs.length) obs.push(['❓',`<b>未解決の問いが${qs.length}件</b>。例：「${qs[0].text.slice(0,28)}${qs[0].text.length>28?'…':''}」 — 答えを別カードで返すと前に進みます。`]);
+  if(qs.length) obs.push(['❓',`<b>未解決の問いが${qs.length}件</b>。例：「${esc(qs[0].text.slice(0,28))}${qs[0].text.length>28?'…':''}」 — 答えを別カードで返すと前に進みます。`]);
   // リスク
   const rs=cards.filter(c=>c.type==='risk');
   if(rs.length) obs.push(['⚠️',`<b>リスク／課題が${rs.length}件</b>。早めに対処カード（タスク）に変換を。`]);
@@ -359,7 +362,7 @@ function buildCoach(){
     (byTgt.A===0?' 女性側の検討が手薄。':byTgt.B===0?' 男性側の検討が手薄。':'')]);
   // next action
   let next='';
-  if(qs.length) next=`未解決の問い「${qs[0].text.slice(0,24)}…」にカードで答える`;
+  if(qs.length) next=`未解決の問い「${esc(qs[0].text.slice(0,24))}…」にカードで答える`;
   else if(diverge>converge*2&&diverge>=3) next='出たアイデアを「収束（比較・選定）」して本命を2〜3枚に絞る';
   else if(blanks.length) next=`盲点テーマ「${blanks[0]}」のカードを足す`;
   else if(rs.length) next='リスクカードを対処タスクに変換する';
@@ -401,14 +404,15 @@ function render(){
     col.innerHTML=`<h4 style="color:${tcolor}">${labelOf(g)}<span class="cnt">${items.length}</span></h4>`;
     if(!items.length){col.innerHTML+=`<div class="empty">—</div>`;}
     items.forEach(c=>{
-      const tc=TYPES.find(x=>x.k===c.type);
+      const tc=TYPES.find(x=>x.k===c.type)||TYPES[0];
       const card=document.createElement('div'); card.className='ic-card'; card.style.borderLeftColor=tc.c;
-      const tgt=TARGETS.find(x=>x.k===c.target);
+      const tgt=TARGETS.find(x=>x.k===c.target)||TARGETS[2];
+      const stg=STAGES.find(x=>x.k===c.stage)||STAGES[0];
       card.innerHTML=`<div class="txt">${esc(c.text)}</div><div class="tags">
         ${gb!=='type'?`<span class="tg" style="color:${tc.c}">${tc.label}</span>`:''}
-        ${gb!=='theme'?`<span class="tg">📂${c.theme}</span>`:''}
+        ${gb!=='theme'?`<span class="tg">📂${esc(c.theme||'')}</span>`:''}
         ${gb!=='target'?`<span class="tg">${tgt.label}</span>`:''}
-        ${gb!=='stage'?`<span class="tg">${STAGES.find(x=>x.k===c.stage).label}</span>`:''}
+        ${gb!=='stage'?`<span class="tg">${stg.label}</span>`:''}
         <span class="tg conf" style="color:${c.conf==='AI'?'var(--accB)':c.conf==='高'?'var(--acc)':c.conf==='中'?'var(--warn)':'var(--mut)'}">${c.conf==='AI'?'🤖AI':'確度'+c.conf}</span>
       </div>`;
       card.onclick=()=>openEdit(c.id);
@@ -483,10 +487,23 @@ function exportData(){
 }
 document.getElementById('expBtn').onclick=exportData;
 document.getElementById('impBtn').onclick=()=>document.getElementById('fileIn').click();
+const VALID_TYPES=new Set(TYPES.map(t=>t.k));
+function normalizeCard(c){
+  if(!c||typeof c.text!=='string'||!c.text.trim())return null;
+  return {id:c.id||uid(), text:c.text,
+    type:VALID_TYPES.has(c.type)?c.type:'idea',
+    theme:THEMES.includes(c.theme)?c.theme:'その他',
+    target:['A','B','共通'].includes(c.target)?c.target:'共通',
+    stage:['発散','収束','検証','実行'].includes(c.stage)?c.stage:'発散',
+    conf:c.conf||'中', reason:c.reason||'', createdAt:c.createdAt||Date.now()};
+}
 document.getElementById('fileIn').onchange=e=>{
   const f=e.target.files[0]; if(!f)return;
   const r=new FileReader(); r.onload=()=>{try{const d=JSON.parse(r.result);
-    if(Array.isArray(d.cards)){cards=d.cards.concat(cards);save();render();}}catch(err){alert('読み込めませんでした')}};
+    if(Array.isArray(d.cards)){const ok=d.cards.map(normalizeCard).filter(Boolean);
+      if(!ok.length){alert('有効なカードがありませんでした');return;}
+      cards=ok.concat(cards);save();render();}
+    else alert('カード配列が見つかりませんでした');}catch(err){alert('読み込めませんでした')}};
   r.readAsText(f); e.target.value='';
 };
 

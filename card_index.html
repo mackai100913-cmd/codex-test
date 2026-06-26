@@ -12,6 +12,9 @@
     --blue:#2f6da3; --warn:#b5762a;
   }
   *{box-sizing:border-box}
+  :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+  button:active{transform:translateY(1px)}
+  @media(pointer:coarse){button,.abtn{min-height:40px;display:inline-flex;align-items:center}}
   body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
     background:var(--desk);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
   header{padding:16px 16px 12px;background:linear-gradient(135deg,var(--wood),var(--wood2));color:#f3ead9;border-bottom:3px solid #43342a}
@@ -597,7 +600,10 @@ document.getElementById('expBtn').onclick=()=>{const blob=new Blob([JSON.stringi
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='index-cards.json';a.click()};
 document.getElementById('impBtn').onclick=()=>document.getElementById('fileIn').click();
 document.getElementById('fileIn').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
-  r.onload=()=>{try{const d=JSON.parse(r.result);if(Array.isArray(d.cards)){cards=d.cards.concat(cards);save();render()}}catch(err){alert('読み込めませんでした')}};
+  r.onload=()=>{try{const d=JSON.parse(r.result);if(Array.isArray(d.cards)){
+    const ok=d.cards.filter(c=>c&&typeof c.text==='string'&&c.text.trim()).map(c=>({id:c.id||uid(),text:c.text,src:typeof c.src==='string'?c.src:'',kind:c.kind,createdAt:c.createdAt||Date.now()}));
+    if(!ok.length){alert('有効なカードがありませんでした');return;}
+    cards=ok.concat(cards);save();render()}else alert('カード配列が見つかりませんでした')}catch(err){alert('読み込めませんでした')}};
   r.readAsText(f);e.target.value=''};
 
 /* ================= AI設定 ================= */

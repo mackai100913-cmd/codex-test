@@ -11,6 +11,9 @@
     --warn:#fbbf24; --chip:#2a3540;
   }
   *{box-sizing:border-box}
+  :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+  button:active{transform:translateY(1px)}
+  @media(pointer:coarse){nav button{min-height:44px}.chip{min-height:32px;display:inline-flex;align-items:center}}
   body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
     background:var(--bg);color:var(--txt);line-height:1.6;-webkit-font-smoothing:antialiased}
   header{padding:20px 16px 12px;background:linear-gradient(135deg,#13351f,#0f1419);border-bottom:1px solid var(--line)}
@@ -275,14 +278,14 @@ function render(){
   const list=IDEAS.filter(it=>{
     if(actCats.size&&!actCats.has(''+it[1]))return false;
     if(actTgts.size&&!actTgts.has(it[2]))return false;
-    if(q&&!(it[3].includes(q)||PMAP[it[4]].includes(q)))return false;
+    if(q&&!(it[3].includes(q)||(PMAP[it[4]]||'').includes(q)))return false;
     return true;});
   document.getElementById('ideaCount').textContent=`${list.length} / 50 件`;
   document.getElementById('ideaList').innerHTML=list.map(it=>
    `<div class="idea"><div class="top"><span class="num">${it[0]}</span>
      <span class="badge ${it[2]}">${it[2]==='A'?'🅰女性':it[2]==='B'?'🅱男性':'共通'}</span></div>
      <div class="body">${it[3]}</div>
-     <div class="meta">📂 ${it[1]+1}.${CATS[it[1]]} ／ 🃏 ${it[4]} ${PMAP[it[4]]}</div></div>`).join('')
+     <div class="meta">📂 ${it[1]+1}.${CATS[it[1]]} ／ 🃏 ${it[4]} ${PMAP[it[4]]||''}</div></div>`).join('')
    ||'<div class="muted">該当なし</div>';
 }
 render();
