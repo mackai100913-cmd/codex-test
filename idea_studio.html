@@ -84,6 +84,7 @@
   a{color:var(--acc);text-underline-offset:3px}
   code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-size:12px}
 </style>
+<script src="./fairy.js" defer></script>
 </head>
 <body>
 <header>
@@ -318,6 +319,7 @@ async function addCard(text){
   const cl=await classify(text);
   cards.unshift({id:uid(),text,...cl,createdAt:Date.now()});
   save(); render();
+  if(window.atSageFairy) window.atSageFairy.feed(1);
 }
 async function addBulk(block){
   const lines=block.split('\n').map(s=>s.trim()).filter(Boolean);
