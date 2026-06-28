@@ -111,7 +111,6 @@
   .foot{color:#6f6651;font-size:11px;text-align:center;padding:18px 12px}
   code{background:#ece4d3;padding:1px 5px;border-radius:5px;font-size:12px}
 </style>
-<script src="./fairy.js" defer></script>
 </head>
 <body>
 <header>
@@ -368,7 +367,7 @@ function render(){
 let comboMode=false, comboGroups=null;
 
 /* ================= カード追加 ================= */
-function addCard(text,src){text=(text||'').trim();if(!text)return;cards.unshift({id:uid(),text,src:src||'',createdAt:Date.now()});save();render();if(window.atSageFairy)window.atSageFairy.feed(1)}
+function addCard(text,src){text=(text||'').trim();if(!text)return;cards.unshift({id:uid(),text,src:src||'',createdAt:Date.now()});save();render()}
 function addBulk(block){block.split('\n').map(s=>s.trim()).filter(Boolean).forEach(l=>addCard(l))}
 
 /* ================= カード詳細（多角度ビュー） ================= */
@@ -426,7 +425,6 @@ async function genFromIds(idsArr){
   if(comboMode&&comboGroups){ comboGroups.unshift({label:'🌱 生成された仮説',ids:[nc.id,...idsArr],generated:true}); }
   render();
   pushMsg('ai',`🌱 新しい**商品仮説カード**を山に戻しました：\n「${text}」\nこれも索引対象です。別角度で索引し直すと、また違う隣人と結合できます（雪だるま式）。`);
-  if(window.atSageFairy) window.atSageFairy.feed(2);
 }
 
 async function sparard(kind,focusCard){
@@ -639,9 +637,9 @@ document.getElementById('customAngle').addEventListener('keydown',e=>{if(e.key==
 document.getElementById('comboBtn').onclick=()=>{comboMode=true;customAngleResult=null;comboGroups=comboIndex();render()};
 document.querySelectorAll('.qa button').forEach(b=>b.onclick=()=>{pushMsg('user',b.textContent);
   if(b.dataset.q==='forge'){const two=[...cards].sort(()=>Math.random()-0.5).slice(0,2).map(c=>c.id);genFromIds(two);}
-  else {sparard(b.dataset.q); if(window.atSageFairy) window.atSageFairy.feed(1);}});
-document.getElementById('sparSend').onclick=()=>{const v=document.getElementById('sparInput').value.trim();if(!v)return;document.getElementById('sparInput').value='';sparFree(v);if(window.atSageFairy)window.atSageFairy.feed(1)};
-document.getElementById('sparInput').addEventListener('keydown',e=>{if(e.key==='Enter'){const v=e.target.value.trim();if(!v)return;e.target.value='';sparFree(v);if(window.atSageFairy)window.atSageFairy.feed(1)}});
+  else sparard(b.dataset.q);});
+document.getElementById('sparSend').onclick=()=>{const v=document.getElementById('sparInput').value.trim();if(!v)return;document.getElementById('sparInput').value='';sparFree(v)};
+document.getElementById('sparInput').addEventListener('keydown',e=>{if(e.key==='Enter'){const v=e.target.value.trim();if(!v)return;e.target.value='';sparFree(v)}});
 
 /* ================= 起動 ================= */
 load();updateBadge();
