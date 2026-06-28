@@ -6,10 +6,17 @@
 <title>カード索引法スタジオ — 3×5の知識カードで壁打ち</title>
 <style>
   :root{
-    --desk:#dcd2c0; --desk2:#d2c7b2; --wood:#5b4636; --wood2:#6f5642;
-    --card:#fffdf6; --rule:#c9dcec; --margin:#e6a7a7; --ink:#2a2723; --mut:#8c8470;
-    --tabc:#c7a35e; --acc:#2f7d4f; --acc2:#3a9d63; --line:#cfc6b2; --paper:#f4efe3;
-    --blue:#2f6da3; --warn:#b5762a;
+    /* Atelier Sage tokens — 紙と苔の単一トークン */
+    --bg:#F4EFE6; --surface:#FBF7EF; --ink:#1F2A24; --text:#2E3A33;
+    --mut:#5A6B61; --line:#D9D2C4; --accent:#3F6B4E; --accent2:#B5562C;
+    --serif:Georgia,'游明朝','Yu Mincho',serif;
+    --sans:system-ui,-apple-system,'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;
+    --ease:cubic-bezier(.2,.7,.2,1);
+    /* 既存コードからの互換マップ（リネーム不要で値だけ差し替え） */
+    --desk:#EEE7D6; --desk2:#E8E0CD; --wood:#1F2A24; --wood2:#2E3A33;
+    --card:#FFFCF3; --rule:#C9DCEC; --margin:#C9B58C;
+    --tabc:#3F6B4E; --acc:#3F6B4E; --acc2:#B5562C; --paper:#FBF7EF;
+    --blue:#3F6B4E; --warn:#B5562C;
   }
   *{box-sizing:border-box}
   :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
@@ -17,11 +24,11 @@
   @media(pointer:coarse){button,.abtn{min-height:40px;display:inline-flex;align-items:center}}
   body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
     background:var(--desk);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
-  header{padding:16px 16px 12px;background:linear-gradient(135deg,var(--wood),var(--wood2));color:#f3ead9;border-bottom:3px solid #43342a}
-  h1{margin:0;font-size:18px;letter-spacing:.02em}
-  .sub{color:#d8c9b4;font-size:12px;margin-top:3px}
-  .ns{margin-top:8px;padding:7px 11px;background:#4a3a2d;border:1px solid #7a6650;border-radius:8px;font-size:12px;color:#ecd9b8}
-  .ns b{color:#ffd98a}
+  header{padding:18px 18px 14px;background:var(--surface);color:var(--ink);border-bottom:1px solid var(--line)}
+  h1{margin:0;font-family:var(--serif);font-weight:400;font-size:20px;letter-spacing:0;color:var(--ink)}
+  .sub{color:var(--mut);font-size:12px;margin-top:3px}
+  .ns{margin-top:9px;padding:7px 12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--text)}
+  .ns b{color:var(--accent)}
   .wrap{display:grid;grid-template-columns:1fr;gap:14px;max-width:1280px;margin:0 auto;padding:14px}
   @media(min-width:980px){.wrap{grid-template-columns:1fr 340px}}
   /* ---- 入力 ---- */

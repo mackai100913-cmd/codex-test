@@ -6,20 +6,22 @@
 <title>アイデア・スタジオ — 情報カード伴走</title>
 <style>
   :root{
-    --bg:#0f1419; --panel:#1a2129; --panel2:#222c36; --line:#2e3a46;
-    --txt:#e6edf3; --mut:#9fb0c0; --acc:#4ade80; --accB:#38bdf8; --accA:#f472b6;
-    --warn:#fbbf24; --chip:#2a3540; --vio:#a78bfa; --org:#fb923c; --red:#f87171;
+    /* Atelier Sage tokens — 紙と苔の単一トークン */
+    --surface-bg:#F4EFE6; --bg:#F4EFE6; --panel:#FBF7EF; --panel2:#F4EFE6; --line:#D9D2C4;
+    --ink:#1F2A24; --txt:#2E3A33; --mut:#5A6B61; --acc:#3F6B4E; --accB:#3F6B4E; --accA:#B5562C;
+    --warn:#B5562C; --chip:#EEE6D3; --vio:#3F6B4E; --org:#B5562C; --red:#B5562C;
+    --serif:Georgia,'游明朝','Yu Mincho',serif;
+    --sans:system-ui,-apple-system,'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;
   }
   *{box-sizing:border-box}
   :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
   button:active{transform:translateY(1px)}
   @media(pointer:coarse){button{min-height:40px}}
-  body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
-    background:var(--bg);color:var(--txt);line-height:1.6;-webkit-font-smoothing:antialiased}
-  header{padding:18px 16px 12px;background:linear-gradient(135deg,#13351f,#0f1419);border-bottom:1px solid var(--line)}
-  h1{margin:0;font-size:19px}
+  body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--txt);line-height:1.65;letter-spacing:.01em;-webkit-font-smoothing:antialiased}
+  header{padding:18px 16px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+  h1{margin:0;font-family:var(--serif);font-weight:400;font-size:20px;color:var(--ink);letter-spacing:0}
   .sub{color:var(--mut);font-size:12px;margin-top:3px}
-  .northstar{margin-top:9px;padding:9px 11px;background:#13351f;border:1px solid #1f5132;border-radius:10px;font-size:12px}
+  .northstar{margin-top:9px;padding:9px 11px;background:var(--bg);border:1px solid var(--line);border-radius:10px;font-size:12px;color:var(--txt)}
   .northstar b{color:var(--acc)}
   main{padding:14px;max-width:1180px;margin:0 auto}
   .toolbar{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:14px}
@@ -29,23 +31,23 @@
   button{background:var(--panel2);color:var(--txt);border:1px solid var(--line);padding:8px 14px;
     border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;transition:.15s}
   button:hover{border-color:var(--acc)}
-  button.primary{background:var(--acc);color:#06210f;border-color:var(--acc);font-weight:700}
+  button.primary{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:700}
   button.ghost{background:transparent;color:var(--mut);padding:6px 10px}
   button.sm{padding:5px 9px;font-size:12px}
   select,input.txt{background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:9px;
     padding:7px 9px;font-size:13px;font-family:inherit}
   .spacer{flex:1}
   .aibadge{font-size:11px;padding:3px 9px;border-radius:20px;border:1px solid var(--line);color:var(--mut)}
-  .aibadge.on{background:#04212e;color:var(--accB);border-color:var(--accB);font-weight:700}
+  .aibadge.on{background:#EAF2EC;color:var(--acc);border-color:var(--acc);font-weight:700}
   /* companion */
-  .coach{background:linear-gradient(135deg,#1a2530,#161d25);border:1px solid #34516a;border-radius:14px;padding:13px 14px;margin-bottom:14px}
-  .coach h3{margin:0 0 8px;font-size:14px;color:var(--accB);display:flex;align-items:center;gap:6px}
-  .obs{display:flex;gap:9px;align-items:flex-start;font-size:13px;padding:5px 0;border-top:1px dashed #2c3b48}
+  .coach{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:14px}
+  .coach h3{margin:0 0 8px;font-family:var(--serif);font-weight:400;font-size:15px;color:var(--ink);display:flex;align-items:center;gap:6px}
+  .obs{display:flex;gap:9px;align-items:flex-start;font-size:13px;padding:6px 0;border-top:1px solid var(--line)}
   .obs:first-of-type{border-top:none}
   .obs .ic{flex:0 0 auto;font-size:15px}
-  .obs b{color:var(--txt)}
-  .nextline{margin-top:9px;padding:8px 10px;background:#0f2a1a;border:1px solid #1f5132;border-radius:10px;font-size:13px}
-  .nextline b{color:var(--acc)}
+  .obs b{color:var(--ink)}
+  .nextline{margin-top:9px;padding:9px 11px;background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:8px;font-size:13px;color:var(--txt);font-family:var(--serif)}
+  .nextline b{color:var(--accA)}
   /* distribution */
   .dist{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
   .dist .b{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:6px 11px;font-size:12px;color:var(--mut)}
@@ -68,7 +70,7 @@
   .tg.conf{border:none}
   .empty{color:var(--mut);font-size:12px;text-align:center;padding:14px 0}
   /* modal */
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .overlay{position:fixed;inset:0;background:rgba(31,42,36,.35);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
   .overlay.show{display:flex}
   .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:560px;width:100%;max-height:90vh;overflow:auto}
   .modal h3{margin:0 0 12px;font-size:15px}
@@ -79,7 +81,7 @@
   .mfoot{display:flex;gap:8px;margin-top:16px;align-items:center}
   .hint{font-size:11px;color:var(--mut);margin-top:6px;line-height:1.5}
   .foot{color:var(--mut);font-size:11px;text-align:center;padding:22px 12px}
-  a{color:var(--accB)}
+  a{color:var(--acc);text-underline-offset:3px}
   code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-size:12px}
 </style>
 </head>
@@ -186,13 +188,13 @@
 <script>
 /* ===== 分類タクソノミー ===== */
 const TYPES=[
- {k:'idea',label:'💡 アイデア',c:'#4ade80'},
- {k:'fact',label:'📊 事実',c:'#38bdf8'},
- {k:'question',label:'❓ 問い',c:'#fbbf24'},
- {k:'insight',label:'✨ 気づき',c:'#a78bfa'},
- {k:'decision',label:'✅ 決定',c:'#34d399'},
- {k:'task',label:'🛠 タスク',c:'#fb923c'},
- {k:'risk',label:'⚠️ リスク',c:'#f87171'},
+ {k:'idea',label:'💡 アイデア',c:'#3F6B4E'},
+ {k:'fact',label:'📊 事実',c:'#5A6B61'},
+ {k:'question',label:'❓ 問い',c:'#B5562C'},
+ {k:'insight',label:'✨ 気づき',c:'#3F6B4E'},
+ {k:'decision',label:'✅ 決定',c:'#B5562C'},
+ {k:'task',label:'🛠 タスク',c:'#1F2A24'},
+ {k:'risk',label:'⚠️ リスク',c:'#B5562C'},
 ];
 const THEMES=['見える化・測定','積立・投資','継続・習慣化','パーソナライズ','コミュニティ',
  '製品形態・UX','信頼・エビデンス','課金・販売','市場・データ','法規・品質','ターゲット・動機','その他'];

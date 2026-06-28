@@ -3,77 +3,93 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>若さプロジェクト — 思考の工房</title>
+<title>思考の工房 — Atelier Sage</title>
 <style>
   :root{
-    --bg:#14110d; --bg2:#1c1813; --paper:#f4efe3; --ink:#2a2723; --mut:#9a8f7a;
-    --line:#332c22; --gold:#caa35e; --green:#4ade80; --blue:#5fb0e8; --pink:#f08fb8;
-    --warm:#e7c98a;
+    --bg:#F4EFE6; --surface:#FBF7EF; --ink:#1F2A24; --text:#2E3A33;
+    --mut:#5A6B61; --line:#D9D2C4; --accent:#3F6B4E; --accent2:#B5562C;
+    --serif:Georgia,'游明朝','Yu Mincho',serif;
+    --sans:system-ui,-apple-system,'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;
+    --ease:cubic-bezier(.2,.7,.2,1);
   }
   *{box-sizing:border-box}
-  :focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
-  .app:active{transform:translateY(-1px)}
-  body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
-    background:radial-gradient(1200px 600px at 50% -10%,#2a2117,#14110d 60%);color:#efe7d8;line-height:1.65;-webkit-font-smoothing:antialiased;min-height:100vh}
-  .wrap{max-width:1040px;margin:0 auto;padding:30px 18px 50px}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font:400 16px/1.65 var(--sans);letter-spacing:.01em;-webkit-font-smoothing:antialiased;min-height:100vh}
+  body{animation:paper-in 240ms var(--ease)}
+  @keyframes paper-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){body{animation:none}.dawn-ember{animation:none;opacity:1}}
+  /* Dawn Ember — index限定の唯一の合図 */
+  .dawn-ember{position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(120% 80% at 30% 18%,rgba(181,86,44,.06),transparent 60%);
+    opacity:0;animation:ember 900ms var(--ease) forwards;animation-delay:120ms}
+  .night .dawn-ember{background:radial-gradient(120% 80% at 30% 18%,rgba(31,42,36,.10),transparent 60%)}
+  @keyframes ember{to{opacity:1}}
+  .wrap{position:relative;z-index:1;max-width:1040px;margin:0 auto;padding:34px 18px 60px}
   /* hero */
-  .hero{text-align:center;padding:20px 0 10px}
-  .kicker{font-size:12px;letter-spacing:.22em;color:var(--gold);text-transform:uppercase}
-  h1{margin:8px 0 6px;font-size:30px;letter-spacing:.02em}
-  .lead{color:#cbbfa8;font-size:14px;max-width:620px;margin:0 auto}
-  .ns{display:inline-block;margin-top:16px;padding:9px 16px;background:#241c12;border:1px solid #3e3322;border-radius:30px;font-size:13px;color:#ecd9b8}
-  .ns b{color:var(--warm)}
+  .hero{text-align:center;padding:12px 0 10px}
+  .kicker{font-size:11px;letter-spacing:.24em;color:var(--accent);text-transform:uppercase}
+  h1{margin:6px 0 6px;font-family:var(--serif);font-weight:400;font-size:32px;color:var(--ink);letter-spacing:0}
+  h1 .em{color:var(--accent2)}
+  .lead{color:var(--mut);font-size:14px;max-width:600px;margin:0 auto}
+  .streak{display:inline-block;margin-top:18px;font-family:var(--serif);font-size:18px;color:var(--ink)}
+  .streak .tnum{font-variant-numeric:tabular-nums;color:var(--accent2);margin:0 2px}
+  .ns{display:inline-block;margin-top:14px;padding:8px 14px;background:var(--surface);border:1px solid var(--line);border-radius:24px;font-size:12.5px;color:var(--text)}
+  .ns b{color:var(--accent)}
   /* section title */
-  .st{display:flex;align-items:center;gap:10px;margin:38px 4px 14px;font-size:14px;color:var(--gold);letter-spacing:.06em}
-  .st::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,#3a3122,transparent)}
-  /* app cards */
-  .apps{display:grid;gap:16px;grid-template-columns:1fr}
-  @media(min-width:760px){.apps{grid-template-columns:1fr 1fr 1fr}}
-  .app{display:flex;flex-direction:column;text-decoration:none;color:inherit;background:linear-gradient(180deg,#221c14,#1a1610);
-    border:1px solid #352c20;border-radius:16px;padding:18px;transition:.18s;position:relative;overflow:hidden}
-  .app::before{content:'';position:absolute;left:0;top:0;right:0;height:3px;background:var(--ac,#caa35e)}
-  .app:hover{transform:translateY(-4px);border-color:var(--ac);box-shadow:0 12px 30px rgba(0,0,0,.4)}
-  .app .ico{font-size:30px;margin-bottom:8px}
-  .app h3{margin:0 0 3px;font-size:16px}
-  .app .tag{color:var(--mut);font-size:12px;margin-bottom:10px}
-  .app ul{margin:0 0 14px;padding-left:17px;font-size:12.5px;color:#cdc2ad}
-  .app ul li{margin:2px 0}
-  .app .open{margin-top:auto;align-self:flex-start;font-size:12.5px;font-weight:700;color:var(--ac);border:1px solid var(--ac);
-    border-radius:9px;padding:6px 13px;background:transparent}
-  .app:hover .open{background:var(--ac);color:#1a1610}
-  .badge{position:absolute;top:14px;right:14px;font-size:10px;color:var(--mut);border:1px solid #3a3122;border-radius:20px;padding:2px 8px}
+  .st{display:flex;align-items:baseline;gap:10px;margin:42px 4px 14px;font-family:var(--serif);font-size:18px;color:var(--ink)}
+  .st::after{content:'';flex:1;height:1px;background:var(--line)}
+  /* apps */
+  .apps{display:grid;gap:14px;grid-template-columns:1fr}
+  @media(min-width:560px){.apps{grid-template-columns:1fr 1fr}}
+  @media(min-width:820px){.apps{grid-template-columns:1fr 1fr 1fr}}
+  .app{display:flex;flex-direction:column;text-decoration:none;color:var(--text);background:var(--surface);
+    border:1px solid var(--line);border-radius:8px;padding:18px 18px 16px;transition:transform .18s var(--ease),border-color .18s,box-shadow .18s;position:relative}
+  .app:hover{transform:translateY(-3px);border-color:var(--accent);box-shadow:0 6px 18px rgba(31,42,36,.07)}
+  .app:active{transform:translateY(-1px)}
+  .app .ico{font-size:26px;margin-bottom:6px}
+  .app h3{margin:0 0 3px;font-family:var(--serif);font-size:18px;font-weight:400;color:var(--ink)}
+  .app .tag{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .app ul{margin:0 0 14px;padding-left:18px;font-size:13px;color:var(--text)}
+  .app ul li{margin:3px 0}
+  .app ul li::marker{color:var(--accent)}
+  .app .open{margin-top:auto;align-self:flex-start;font-size:12.5px;color:var(--accent);
+    border-bottom:1px solid var(--accent);padding:2px 0}
+  .badge{position:absolute;top:14px;right:14px;font-size:10.5px;color:var(--mut);
+    font-family:var(--serif);letter-spacing:.05em}
   /* flow */
-  .flow{display:grid;gap:10px;grid-template-columns:1fr;background:#1b1610;border:1px solid #332a1f;border-radius:14px;padding:16px}
+  .flow{display:grid;gap:10px;grid-template-columns:1fr;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
   @media(min-width:680px){.flow{grid-template-columns:1fr auto 1fr auto 1fr;align-items:center}}
-  .step{background:#231c13;border:1px solid #3a3122;border-radius:11px;padding:11px 13px}
-  .step b{display:block;font-size:13px;color:var(--warm)}
-  .step span{font-size:12px;color:var(--mut)}
-  .arrow{text-align:center;color:var(--gold);font-size:18px}
+  .step{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+  .step b{display:block;font-family:var(--serif);font-size:14px;color:var(--ink);font-weight:400}
+  .step span{font-size:12.5px;color:var(--mut)}
+  .arrow{text-align:center;color:var(--accent);font-size:18px}
   /* docs */
   .docs{display:grid;gap:10px;grid-template-columns:1fr 1fr}
   @media(min-width:680px){.docs{grid-template-columns:1fr 1fr 1fr 1fr}}
-  .doc{display:block;text-decoration:none;color:#d9cdb6;background:#1a1610;border:1px solid #322a1f;border-radius:11px;padding:11px 13px;font-size:13px;transition:.15s}
-  .doc:hover{border-color:var(--gold);color:#fff}
-  .doc b{display:block;font-size:13px;color:#efe7d8}
-  .doc span{font-size:11px;color:var(--mut)}
-  .foot{text-align:center;color:#6f6650;font-size:11px;margin-top:40px}
-  a.plain{color:var(--gold)}
+  .doc{display:block;text-decoration:none;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:11px 13px;font-size:12.5px;transition:.15s var(--ease)}
+  .doc:hover{border-color:var(--accent);color:var(--ink)}
+  .doc b{display:block;font-family:var(--serif);font-size:14px;color:var(--ink);font-weight:400;margin-bottom:2px}
+  .doc span{font-size:11.5px;color:var(--mut)}
+  .foot{text-align:center;color:var(--mut);font-size:11px;margin-top:42px;font-family:var(--serif)}
 </style>
 </head>
 <body>
+<div class="dawn-ember" aria-hidden="true"></div>
 <div class="wrap">
 
   <div class="hero">
     <div class="kicker">機能性D2Cサプリ・新規事業</div>
-    <h1>🛠 若さプロジェクト — 思考の工房</h1>
-    <div class="lead">市場を見て、情報を整理し、発想を広げる。アイデア段階を伴走する3つの道具を、ここから開きます。</div>
-    <div class="ns">🌟 北極星：<b>若さを保つ（見た目＋中身の二階建て）</b>／フレーム＝<b>D1 見える化＋D3 積立</b></div>
+    <h1>🛠 思考の工房 <span class="em">— Atelier Sage</span></h1>
+    <div class="lead">紙と苔の工房。市場を見て、情報を整理し、発想を広げる。あなたが毎朝、ここに帰ってくる場所。</div>
+    <div class="streak" id="streak">🕯 <span class="tnum" id="days">1</span>日連続、工房に灯りをともした</div>
+    <div><span class="ns">🌟 北極星：<b>若さを保つ（見た目＋中身）</b>／フレーム＝<b>D1 見える化＋D3 積立</b></span></div>
   </div>
 
   <div class="st">🧰 3つの道具</div>
   <div class="apps">
 
-    <a class="app" href="./dashboard.html" style="--ac:#4ade80">
+    <a class="app" href="./dashboard.html">
       <span class="badge">見る</span>
       <div class="ico">🧬</div>
       <h3>ダッシュボード</h3>
@@ -86,7 +102,7 @@
       <span class="open">開く →</span>
     </a>
 
-    <a class="app" href="./idea_studio.html" style="--ac:#5fb0e8">
+    <a class="app" href="./idea_studio.html">
       <span class="badge">整理する</span>
       <div class="ico">🗂️</div>
       <h3>アイデア・スタジオ</h3>
@@ -94,12 +110,12 @@
       <ul>
         <li>書くと種別/テーマ/対象/段階に自動仕分け</li>
         <li>ボードで可視化・検索</li>
-        <li>伴走パネルが“次の一手”を提案</li>
+        <li>伴走パネルが「次の一手」を提案</li>
       </ul>
       <span class="open">開く →</span>
     </a>
 
-    <a class="app" href="./card_index.html" style="--ac:#f08fb8">
+    <a class="app" href="./card_index.html">
       <span class="badge">発想する</span>
       <div class="ico">🗃️</div>
       <h3>カード索引法スタジオ</h3>
@@ -131,8 +147,35 @@
     <a class="doc" href="./IDEA_BOOK.md"><b>IDEA_BOOK.md</b><span>リサーチ事実カード集</span></a>
   </div>
 
-  <div class="foot">単一HTML・自己完結／このページと各アプリは同じフォルダに置けば相互リンクで動きます。<br>※ .md は GitHub 上ではプレビュー表示されます。</div>
+  <div class="foot">紙と苔の工房 — Atelier Sage　／　単一HTML・自己完結</div>
 
 </div>
+<script>
+  // 朝/夜の二相：18時以降 or 5時以前は灯の小窓へ
+  (function(){
+    var h = new Date().getHours();
+    if(h>=18 || h<5) document.documentElement.classList.add('night');
+  })();
+  // 連続日数（毎日の最初の訪問で +1、24-48hで連続、48h超で1にリセット）
+  (function(){
+    try{
+      var K='atelierSage.streak.v1';
+      var today=new Date(); today.setHours(0,0,0,0);
+      var todayMs=today.getTime();
+      var raw=localStorage.getItem(K);
+      var state=raw?JSON.parse(raw):{lastDay:0,count:0};
+      var days=Math.round((todayMs-state.lastDay)/86400000);
+      if(state.lastDay===0)        state={lastDay:todayMs,count:1};
+      else if(days===0)            { /* 同日：そのまま */ }
+      else if(days===1)            state={lastDay:todayMs,count:state.count+1};
+      else                          state={lastDay:todayMs,count:1};
+      localStorage.setItem(K,JSON.stringify(state));
+      document.getElementById('days').textContent=state.count;
+      if(state.count===1){
+        document.getElementById('streak').innerHTML='🕯 <span class="tnum">今日</span>、工房に灯りをともした';
+      }
+    }catch(e){/* localStorage不可ならデフォルト1日のまま */}
+  })();
+</script>
 </body>
 </html>

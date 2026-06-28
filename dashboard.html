@@ -6,29 +6,31 @@
 <title>健康寿命プロジェクト ダッシュボード</title>
 <style>
   :root{
-    --bg:#0f1419; --panel:#1a2129; --panel2:#222c36; --line:#2e3a46;
-    --txt:#e6edf3; --mut:#9fb0c0; --acc:#4ade80; --accB:#38bdf8; --accA:#f472b6;
-    --warn:#fbbf24; --chip:#2a3540;
+    /* Atelier Sage tokens */
+    --bg:#F4EFE6; --panel:#FBF7EF; --panel2:#EEE6D3; --line:#D9D2C4;
+    --ink:#1F2A24; --txt:#2E3A33; --mut:#5A6B61; --acc:#3F6B4E; --accB:#3F6B4E; --accA:#B5562C;
+    --warn:#B5562C; --chip:#EEE6D3;
+    --serif:Georgia,'游明朝','Yu Mincho',serif;
+    --sans:system-ui,-apple-system,'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;
   }
   *{box-sizing:border-box}
   :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
   button:active{transform:translateY(1px)}
   @media(pointer:coarse){nav button{min-height:44px}.chip{min-height:32px;display:inline-flex;align-items:center}}
-  body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
-    background:var(--bg);color:var(--txt);line-height:1.6;-webkit-font-smoothing:antialiased}
-  header{padding:20px 16px 12px;background:linear-gradient(135deg,#13351f,#0f1419);border-bottom:1px solid var(--line)}
-  h1{margin:0;font-size:20px}
-  .sub{color:var(--mut);font-size:13px;margin-top:4px}
-  .northstar{margin-top:10px;padding:10px 12px;background:#13351f;border:1px solid #1f5132;border-radius:10px;font-size:13px}
+  body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--txt);line-height:1.65;letter-spacing:.01em;-webkit-font-smoothing:antialiased}
+  header{padding:20px 18px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+  h1{margin:0;font-family:var(--serif);font-weight:400;font-size:22px;color:var(--ink);letter-spacing:0}
+  .sub{color:var(--mut);font-size:12.5px;margin-top:4px}
+  .northstar{margin-top:10px;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;font-size:13px;color:var(--txt)}
   .northstar b{color:var(--acc)}
   nav{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);z-index:10}
   nav button{flex:0 0 auto;background:var(--panel);color:var(--mut);border:1px solid var(--line);
-    padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer;white-space:nowrap}
-  nav button.active{background:var(--acc);color:#06210f;border-color:var(--acc);font-weight:700}
+    padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:var(--sans)}
+  nav button.active{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:700}
   main{padding:16px;max-width:1100px;margin:0 auto}
   .tab{display:none} .tab.active{display:block;animation:f .25s ease}
   @keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  h2{font-size:16px;margin:18px 0 10px;padding-left:10px;border-left:4px solid var(--acc)}
+  h2{font-family:var(--serif);font-weight:400;font-size:18px;color:var(--ink);margin:20px 0 10px;padding-left:10px;border-left:3px solid var(--acc)}
   .grid{display:grid;gap:12px}
   @media(min-width:680px){.grid.cols2{grid-template-columns:1fr 1fr}.grid.cols3{grid-template-columns:1fr 1fr 1fr}}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
@@ -40,9 +42,9 @@
   .tagA{color:var(--accA)} .tagB{color:var(--accB)} .tagC{color:var(--acc)}
   .chip{display:inline-block;background:var(--chip);border:1px solid var(--line);border-radius:14px;
     padding:3px 10px;font-size:12px;margin:2px 3px 2px 0;cursor:pointer;color:var(--mut)}
-  .chip.on{background:var(--accB);color:#04212e;border-color:var(--accB);font-weight:700}
-  .chipA.on{background:var(--accA);color:#3a0a22}
-  .chipC.on{background:var(--acc);color:#06210f}
+  .chip.on{background:var(--accB);color:#fff;border-color:var(--accB);font-weight:700}
+  .chipA.on{background:var(--accA);color:#fff;border-color:var(--accA)}
+  .chipC.on{background:var(--acc);color:#fff;border-color:var(--acc)}
   #ideaSearch{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
     background:var(--panel);color:var(--txt);font-size:14px;margin-bottom:10px}
   .idea{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:8px}
@@ -52,15 +54,15 @@
   .idea .body{font-size:14px;margin-top:2px}
   .idea .meta{font-size:11px;color:var(--mut);margin-top:5px}
   .badge{font-size:11px;padding:2px 7px;border-radius:8px;margin-left:auto;flex:0 0 auto}
-  .badge.A{background:#3a0a22;color:var(--accA)} .badge.B{background:#04212e;color:var(--accB)}
-  .badge.共通{background:#06210f;color:var(--acc)}
+  .badge.A{background:transparent;color:var(--accA);border:1px solid var(--accA)} .badge.B{background:transparent;color:var(--accB);border:1px solid var(--accB)}
+  .badge.共通{background:transparent;color:var(--acc);border:1px solid var(--acc)}
   .stat{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0}
   .stat .b{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;flex:1;min-width:120px}
   .stat .b b{display:block;font-size:18px;color:var(--acc)}
   .count{color:var(--mut);font-size:12px;margin:4px 0 10px}
-  a{color:var(--accB)}
-  .foot{color:var(--mut);font-size:11px;text-align:center;padding:24px 12px}
-  details{margin:6px 0} summary{cursor:pointer;color:var(--accB);font-size:13px}
+  a{color:var(--acc);text-underline-offset:3px}
+  .foot{color:var(--mut);font-size:11px;text-align:center;padding:24px 12px;font-family:var(--serif)}
+  details{margin:6px 0} summary{cursor:pointer;color:var(--acc);font-size:13px}
   .pill{font-size:11px;color:var(--warn);border:1px solid var(--warn);border-radius:8px;padding:1px 6px}
 </style>
 </head>
@@ -78,13 +80,13 @@
 <section class="tab active" id="t-overview">
   <h2>2軸の商品コンセプト</h2>
   <div class="grid cols2">
-    <div class="card" style="border-color:#7a2a52">
+    <div class="card" style="border-left:3px solid var(--accA)">
       <h3 class="tagA">🅰 女性 40-55 ／ 核＝エクオール・大豆イソフラボン</h3>
       <p class="muted">「閉経は美容問題じゃない。<b>その後30年の健康寿命、最大の分岐点</b>」。更年期→骨・血管を守り寝たきり/脳心血管を防ぐ。</p>
       <div class="muted">見える化：エクオール産生能検査(ソイチェック)同梱／時間軸：守る・立て直す</div>
       <div class="stat"><div class="b"><b>280億</b>更年期ケア市場(二桁成長)</div><div class="b"><b>200億</b>エクオール市場</div></div>
     </div>
-    <div class="card" style="border-color:#1f5d7a">
+    <div class="card" style="border-left:3px solid var(--acc)">
       <h3 class="tagB">🅱 男性 30-45 ／ 核＝ブラックジンジャー由来PMF</h3>
       <p class="muted">「サルコペニアは高齢者の話じゃない。<b>30代の“前借り予防”で動ける一生を貯める</b>」。脚の筋肉×体脂肪を1成分で。</p>
       <div class="muted">見える化：体組成(筋量)・体脂肪率／時間軸：前倒しで貯める</div>
@@ -115,7 +117,7 @@
     <tr><td>腸内環境</td><td>1,000億超</td><td>◎ビフィズス菌</td><td>腸内検査</td><td>🔴激化</td></tr>
     <tr><td>血圧/血管</td><td>199億(<b>+21.3%</b>)</td><td>◎GABA(900件超)</td><td>血圧計</td><td>🟡</td></tr>
     <tr><td>認知機能</td><td>届出300件超</td><td>◎GABA/DHA</td><td>認知アプリ</td><td>🟡</td></tr>
-    <tr style="background:#13351f"><td>更年期ケア</td><td><b>280億(二桁成長)</b></td><td>◎エクオール</td><td><b>産生能検査</b></td><td>🟢余地</td></tr>
+    <tr style="background:#EAF2EC"><td><b>更年期ケア</b></td><td><b>280億(二桁成長)</b></td><td>◎エクオール</td><td><b>産生能検査</b></td><td>🟢余地</td></tr>
     <tr><td>骨/ロコモ</td><td>未成熟</td><td>△大豆イソフラ</td><td>骨密度</td><td>🟢青</td></tr>
     <tr><td>筋肉/サルコペニア</td><td>黎明期</td><td>△HMB/黒生姜のみ</td><td>筋量</td><td>🟢青</td></tr>
   </table></div>
