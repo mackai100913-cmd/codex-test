@@ -83,29 +83,69 @@
   .foot{color:var(--mut);font-size:11px;text-align:center;padding:22px 12px}
   a{color:var(--acc);text-underline-offset:3px}
   code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-size:12px}
+  /* 共通ナビ（戻る＋プロジェクト名） */
+  .topnav{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel);
+    border-bottom:1px solid var(--line)}
+  .topnav .back{display:inline-flex;align-items:center;gap:4px;text-decoration:none;
+    color:var(--mut);font-size:13px;padding:6px 10px;border-radius:6px;transition:.15s}
+  .topnav .back:hover{background:var(--bg);color:var(--ink)}
+  .topnav .pn{flex:1;text-align:center;font-family:var(--serif);font-size:13px;color:var(--mut)}
+  .topnav .ttl{font-family:var(--serif);font-size:13px;color:var(--ink);padding:6px 10px}
+  @media(pointer:coarse){.topnav .back{min-height:40px}}
+  /* ⋯ メニュー（シート） */
+  .menupop{position:fixed;inset:0;background:rgba(31,42,36,.42);display:none;
+    align-items:flex-end;justify-content:center;padding:16px;z-index:60}
+  .menupop.on{display:flex}
+  @media(min-width:560px){.menupop{align-items:center}}
+  .menupop .sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:8px;max-width:340px;width:100%;animation:popIn .18s ease}
+  @keyframes popIn{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
+  .menupop .mi{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:none;border:none;padding:11px 14px;border-radius:8px;font-size:14px;
+    color:var(--ink);font-family:inherit;cursor:pointer;transition:.1s}
+  .menupop .mi:hover{background:var(--bg)}
+  .menupop .mi.danger{color:var(--accA)}
+  .menupop .div{height:1px;background:var(--line);margin:4px 8px}
+  /* coach 折りたたみ */
+  .coach details{margin:0}
+  .coach details summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;
+    font-family:var(--serif);font-size:14px;color:var(--ink);padding:0}
+  .coach details summary::-webkit-details-marker{display:none}
+  .coach details summary::before{content:'▸';color:var(--mut);font-size:11px;transition:transform .15s}
+  .coach details[open] summary::before{transform:rotate(90deg)}
+  .coach details[open] summary{margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line)}
 </style>
 </head>
 <body>
-<header>
-  <h1>🗂️ アイデア・スタジオ <span style="font-size:13px;color:var(--mut)">— 情報カード × AI自動分類 × 伴走</span></h1>
-  <div class="sub">カードを書く → AIが「種別・テーマ・対象・段階」に自動分類 → ボードで可視化 → 伴走パネルが次の一手を提案</div>
-  <div class="northstar">🌟 北極星：<b>若さを保つ（見た目＋中身の二階建て）</b>／フレーム＝<b>D1 見える化</b>＋<b>D3 積立</b>。健康寿命は下支え。</div>
-</header>
+<nav class="topnav">
+  <a class="back" href="./index.html" aria-label="工房に戻る">← 工房</a>
+  <div class="pn" id="topPn">—</div>
+  <span class="ttl">🗂️ アイデア</span>
+</nav>
 
 <main>
-  <!-- 入力 -->
+  <!-- 入力（ミニマル） -->
   <div class="toolbar">
-    <textarea id="input" placeholder="思いついたこと・事実・問い・タスクを1枚ずつ書いて Enter で追加（Shift+Enterで改行）。例：『男性は美容と言うと恥ずかしい→自己投資と言い換える』"></textarea>
+    <textarea id="input" placeholder="思いついたこと・事実・問い・タスクを1枚に。Enterで追加（Shift+Enterで改行）"></textarea>
     <div class="row">
-      <button class="primary" id="addBtn">＋ カード追加</button>
-      <button id="bulkBtn" title="テキストエリアの各行を1枚ずつカード化">行ごとに一括追加</button>
+      <button class="primary" id="addBtn">＋ 追加</button>
       <span class="spacer"></span>
-      <span class="aibadge" id="aiBadge">AI分類：ローカル</span>
-      <button class="ghost sm" id="setBtn">⚙ 設定</button>
-      <button class="ghost sm" id="expBtn">⬇ 書き出し</button>
-      <button class="ghost sm" id="impBtn">⬆ 取込</button>
-      <button class="ghost sm" id="sampleBtn">サンプル</button>
-      <button class="ghost sm" id="clearBtn">全消去</button>
+      <button class="ghost sm" id="moreBtn" aria-label="その他のメニュー" title="その他">⋯</button>
+    </div>
+  </div>
+
+  <!-- ⋯ メニュー -->
+  <div class="menupop" id="menuPop" role="dialog" aria-modal="true">
+    <div class="sheet">
+      <button class="mi" id="bulkBtn">📋 行ごとに一括追加</button>
+      <button class="mi" id="sampleBtn">🎁 サンプルを投入</button>
+      <div class="div"></div>
+      <button class="mi" id="setBtn">⚙ AI分類の設定 <span class="aibadge" id="aiBadge" style="margin-left:auto">ローカル</span></button>
+      <div class="div"></div>
+      <button class="mi" id="expBtn">⬇ 書き出し</button>
+      <button class="mi" id="impBtn">⬆ 取込</button>
+      <div class="div"></div>
+      <button class="mi danger" id="clearBtn">🗑 全消去</button>
     </div>
   </div>
 
@@ -301,9 +341,27 @@ async function classify(text){
   return classifyLocal(text);
 }
 
-/* ===== 状態 ===== */
+/* ===== 状態（プロジェクト名前空間） ===== */
 let cards=[], settings={mode:'local',key:'',model:'claude-haiku-4-5-20251001'};
-const LS_C='ideaStudio.cards.v1', LS_S='ideaStudio.settings.v1';
+const PCUR = localStorage.getItem('atelierSage.current.v1') || 'default';
+const LS_C='atelierSage.proj.'+PCUR+'.ideas';
+const LS_S='atelierSage.proj.'+PCUR+'.ideaSettings';
+// 既存(旧キー)を default プロジェクトへ一度だけ移行
+if(PCUR==='default'){
+  if(localStorage.getItem(LS_C)===null && localStorage.getItem('ideaStudio.cards.v1')!==null)
+    localStorage.setItem(LS_C, localStorage.getItem('ideaStudio.cards.v1'));
+  if(localStorage.getItem(LS_S)===null && localStorage.getItem('ideaStudio.settings.v1')!==null)
+    localStorage.setItem(LS_S, localStorage.getItem('ideaStudio.settings.v1'));
+}
+// プロジェクト名表示
+(function(){
+  try{
+    const ps=JSON.parse(localStorage.getItem('atelierSage.projects.v1'))||[];
+    const p=ps.find(x=>x.id===PCUR);
+    const el=document.getElementById('topPn');
+    if(el) el.textContent = p ? p.name : 'メイン';
+  }catch(e){}
+})();
 function load(){
   try{const raw=JSON.parse(localStorage.getItem(LS_C))||[];cards=Array.isArray(raw)?raw.map(normalizeCard).filter(Boolean):[]}catch(e){cards=[]}
   try{settings=Object.assign(settings,JSON.parse(localStorage.getItem(LS_S))||{})}catch(e){}
@@ -327,12 +385,7 @@ async function addBulk(block){
 /* ===== 伴走パネル ===== */
 function buildCoach(){
   const el=document.getElementById('coach');
-  if(!cards.length){
-    el.innerHTML=`<h3>🤝 伴走パネル</h3>
-     <div class="obs"><span class="ic">👋</span><div>カードがまだありません。思いついたことを上の欄にどんどん放り込んでください。<b>事実・アイデア・問い・タスク</b>が混ざっていてOK、AIが仕分けします。</div></div>
-     <div class="obs"><span class="ic">💡</span><div>まずは <b>「サンプル」ボタン</b> で動きを見るのがおすすめです。</div></div>`;
-    return;
-  }
+  if(!cards.length){ el.innerHTML=''; return; }
   const byType={}; TYPES.forEach(t=>byType[t.k]=0);
   const byTheme={}; THEMES.forEach(t=>byTheme[t]=0);
   const byTgt={A:0,B:0,'共通':0}, byStage={発散:0,収束:0,検証:0,実行:0};
@@ -370,9 +423,12 @@ function buildCoach(){
   else if(rs.length) next='リスクカードを対処タスクに変換する';
   else next='手応えのあるカードを深掘り（処方・剤型・コピーまで具体化）する';
 
-  el.innerHTML=`<h3>🤝 伴走パネル <span style="font-size:11px;color:var(--mut);font-weight:400">（${cards.length}枚から自動観察）</span></h3>`+
-    obs.map(o=>`<div class="obs"><span class="ic">${o[0]}</span><div>${o[1]}</div></div>`).join('')+
-    `<div class="nextline">👉 次の一手：<b>${next}</b></div>`;
+  const nextPlain=esc(next.replace(/<[^>]+>/g,'')).slice(0,50);
+  el.innerHTML=`<details>
+    <summary>👉 ${nextPlain}</summary>
+    ${obs.slice(0,3).map(o=>`<div class="obs"><span class="ic">${o[0]}</span><div>${o[1]}</div></div>`).join('')}
+    <div class="nextline">👉 次の一手：<b>${next}</b></div>
+  </details>`;
 }
 
 /* ===== 分布 ===== */
@@ -533,9 +589,21 @@ document.getElementById('groupBy').onchange=render;
 document.getElementById('search').oninput=render;
 document.getElementById('setBtn').onclick=openSet;
 
+/* ===== ⋯メニュー ===== */
+(function(){
+  const pop=document.getElementById('menuPop');
+  document.getElementById('moreBtn').onclick=()=>pop.classList.add('on');
+  pop.addEventListener('click',e=>{
+    if(e.target.id==='menuPop'){pop.classList.remove('on');return;}
+    if(e.target.closest('.mi'))pop.classList.remove('on');
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape')pop.classList.remove('on');
+  });
+})();
+
 /* ===== 起動 ===== */
-load(); updateAiBadge();
-if(!cards.length){ (async()=>{for(const s of SAMPLE.slice(0,5))await addCard(s)})(); } else { render(); }
+load(); updateAiBadge(); render();
 </script>
 </body>
 </html>

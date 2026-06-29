@@ -110,31 +110,63 @@
   .mfoot{display:flex;gap:8px;margin-top:16px;align-items:center}
   .foot{color:#6f6651;font-size:11px;text-align:center;padding:18px 12px}
   code{background:#ece4d3;padding:1px 5px;border-radius:5px;font-size:12px}
+  /* 共通ナビ */
+  .topnav{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);
+    border-bottom:1px solid var(--line)}
+  .topnav .back{display:inline-flex;align-items:center;gap:4px;text-decoration:none;
+    color:var(--mut);font-size:13px;padding:6px 10px;border-radius:6px;transition:.15s}
+  .topnav .back:hover{background:var(--bg);color:var(--ink)}
+  .topnav .pn{flex:1;text-align:center;font-family:var(--serif);font-size:13px;color:var(--mut)}
+  .topnav .ttl{font-family:var(--serif);font-size:13px;color:var(--ink);padding:6px 10px}
+  @media(pointer:coarse){.topnav .back{min-height:40px}}
+  /* ⋯メニュー */
+  .menupop{position:fixed;inset:0;background:rgba(31,42,36,.42);display:none;
+    align-items:flex-end;justify-content:center;padding:16px;z-index:60}
+  .menupop.on{display:flex}
+  @media(min-width:560px){.menupop{align-items:center}}
+  .menupop .sheet{background:var(--paper);border:1px solid var(--line);border-radius:14px;
+    padding:8px;max-width:340px;width:100%;animation:popIn .18s ease}
+  @keyframes popIn{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
+  .menupop .mi{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:none;border:none;padding:11px 14px;border-radius:8px;font-size:14px;
+    color:var(--ink);font-family:inherit;cursor:pointer;transition:.1s}
+  .menupop .mi:hover{background:var(--bg)}
+  .menupop .mi.danger{color:var(--warn)}
+  .menupop .div{height:1px;background:var(--line);margin:4px 8px}
 </style>
 </head>
 <body>
-<header>
-  <h1>🗃️ カード索引法スタジオ <span style="font-size:12px;color:#cbb89a">— 3×5の知識カードで“何度も索引”して壁打ち</span></h1>
-  <div class="sub">1事項=1カードで書く → テーマ別に分類 → <b>いろんな角度から何度も索引し直す</b> → AIと壁打ちして新結合を生む（ヤング式）</div>
-  <div class="ns">🌟 北極星：<b>若さを保つ（見た目＋中身）</b>／フレーム＝<b>D1 見える化＋D3 積立</b>。</div>
-</header>
+<nav class="topnav">
+  <a class="back" href="./index.html" aria-label="工房に戻る">← 工房</a>
+  <div class="pn" id="topPn">—</div>
+  <span class="ttl">🗃️ 索引</span>
+</nav>
 
 <div class="wrap">
   <!-- 左：カード＋索引 -->
   <div>
     <div class="panel">
-      <div class="writecard"><textarea id="input" placeholder="特殊な知識・事実・思いつきを1枚に1事項だけ。例：『成長ホルモンの約7割は入眠後最初の深い睡眠で分泌される』"></textarea></div>
+      <div class="writecard"><textarea id="input" placeholder="1枚に1事項だけ。例：『成長ホルモンの約7割は入眠後の深い睡眠で分泌される』"></textarea></div>
       <div class="row">
-        <button class="primary" id="addBtn">＋ カードに書く</button>
-        <button id="bulkBtn" class="sm" title="各行を1枚ずつカード化">行ごとに束で追加</button>
+        <button class="primary" id="addBtn">＋ 書く</button>
         <span class="spacer"></span>
-        <span class="aibadge" id="aiBadge">AI：ローカル</span>
-        <button class="ghost sm" id="setBtn">⚙ AI設定</button>
-        <button class="ghost sm" id="seedBtn">📚 知識を取り込む</button>
-        <button class="ghost sm" id="ideasBtn">💡 アイデア集</button>
-        <button class="ghost sm" id="expBtn">⬇</button>
-        <button class="ghost sm" id="impBtn">⬆</button>
-        <button class="ghost sm" id="clearBtn">全消去</button>
+        <button class="ghost sm" id="moreBtn" aria-label="その他">⋯</button>
+      </div>
+    </div>
+
+    <!-- ⋯メニュー -->
+    <div class="menupop" id="menuPop" role="dialog" aria-modal="true">
+      <div class="sheet">
+        <button class="mi" id="bulkBtn">📋 行ごとに束で追加</button>
+        <button class="mi" id="seedBtn">📚 知識を取り込む</button>
+        <button class="mi" id="ideasBtn">💡 アイデア集</button>
+        <div class="div"></div>
+        <button class="mi" id="setBtn">⚙ AI設定 <span class="aibadge" id="aiBadge" style="margin-left:auto">ローカル</span></button>
+        <div class="div"></div>
+        <button class="mi" id="expBtn">⬇ 書き出し</button>
+        <button class="mi" id="impBtn">⬆ 取込</button>
+        <div class="div"></div>
+        <button class="mi danger" id="clearBtn">🗑 全消去</button>
       </div>
     </div>
 
@@ -290,7 +322,23 @@ const ANGLE_BY=Object.fromEntries(ANGLES.map(a=>[a.key,a]));
 let cards=[], settings={mode:'local',key:'',model:'claude-haiku-4-5-20251001'};
 let curAngle='theme', customAngleResult=null; // {label, map:{id->section}, sectionsOrder:[]}
 let chat=[];
-const LS_C='cardIndex.cards.v1', LS_S='cardIndex.settings.v1';
+const PCUR=localStorage.getItem('atelierSage.current.v1')||'default';
+const LS_C='atelierSage.proj.'+PCUR+'.cards';
+const LS_S='atelierSage.proj.'+PCUR+'.cardSettings';
+if(PCUR==='default'){
+  if(localStorage.getItem(LS_C)===null && localStorage.getItem('cardIndex.cards.v1')!==null)
+    localStorage.setItem(LS_C, localStorage.getItem('cardIndex.cards.v1'));
+  if(localStorage.getItem(LS_S)===null && localStorage.getItem('cardIndex.settings.v1')!==null)
+    localStorage.setItem(LS_S, localStorage.getItem('cardIndex.settings.v1'));
+}
+(function(){
+  try{
+    const ps=JSON.parse(localStorage.getItem('atelierSage.projects.v1'))||[];
+    const p=ps.find(x=>x.id===PCUR);
+    const el=document.getElementById('topPn');
+    if(el) el.textContent = p ? p.name : 'メイン';
+  }catch(e){}
+})();
 function load(){try{cards=JSON.parse(localStorage.getItem(LS_C))||[]}catch(e){cards=[]}
   try{settings=Object.assign(settings,JSON.parse(localStorage.getItem(LS_S))||{})}catch(e){}}
 function save(){localStorage.setItem(LS_C,JSON.stringify(cards))}
@@ -641,11 +689,21 @@ document.querySelectorAll('.qa button').forEach(b=>b.onclick=()=>{pushMsg('user'
 document.getElementById('sparSend').onclick=()=>{const v=document.getElementById('sparInput').value.trim();if(!v)return;document.getElementById('sparInput').value='';sparFree(v)};
 document.getElementById('sparInput').addEventListener('keydown',e=>{if(e.key==='Enter'){const v=e.target.value.trim();if(!v)return;e.target.value='';sparFree(v)}});
 
+/* ⋯メニュー */
+(function(){
+  const pop=document.getElementById('menuPop');
+  document.getElementById('moreBtn').onclick=()=>pop.classList.add('on');
+  pop.addEventListener('click',e=>{
+    if(e.target.id==='menuPop'){pop.classList.remove('on');return;}
+    if(e.target.closest('.mi'))pop.classList.remove('on');
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape')pop.classList.remove('on');
+  });
+})();
+
 /* ================= 起動 ================= */
-load();updateBadge();
-if(!cards.length){SEED.forEach(s=>cards.push({id:uid(),text:s[0],src:s[1],createdAt:Date.now()}));save()}
-render();
-pushMsg('ai','ようこそ。これは**カード索引法**の道具です。1事項=1枚で知識を貯め、上の**角度ボタン**で何度も索引し直すと、同じカードから別の地図が見えます。🔀ランダム新結合や、左のボタンで私と壁打ちしましょう。');
+load();updateBadge();render();
 </script>
 </body>
 </html>

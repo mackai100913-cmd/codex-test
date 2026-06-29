@@ -64,14 +64,38 @@
   .foot{color:var(--mut);font-size:11px;text-align:center;padding:24px 12px;font-family:var(--serif)}
   details{margin:6px 0} summary{cursor:pointer;color:var(--acc);font-size:13px}
   .pill{font-size:11px;color:var(--warn);border:1px solid var(--warn);border-radius:8px;padding:1px 6px}
+  /* 共通ナビ */
+  .topnav{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel);
+    border-bottom:1px solid var(--line)}
+  .topnav .back{display:inline-flex;align-items:center;gap:4px;text-decoration:none;
+    color:var(--mut);font-size:13px;padding:6px 10px;border-radius:6px;transition:.15s}
+  .topnav .back:hover{background:var(--bg);color:var(--ink)}
+  .topnav .pn{flex:1;text-align:center;font-family:var(--serif);font-size:13px;color:var(--mut)}
+  .topnav .ttl{font-family:var(--serif);font-size:13px;color:var(--ink);padding:6px 10px}
+  @media(pointer:coarse){.topnav .back{min-height:40px}}
 </style>
 </head>
 <body>
+<nav class="topnav">
+  <a class="back" href="./index.html" aria-label="工房に戻る">← 工房</a>
+  <div class="pn" id="topPn">—</div>
+  <span class="ttl">🧬 俯瞰</span>
+</nav>
 <header>
-  <h1>🧬 健康寿命プロジェクト ダッシュボード</h1>
-  <div class="sub">機能性D2Cサプリ 2軸 / アイデア資料の見える化 · 更新 2026-06-11</div>
-  <div class="northstar">🌟 北極星：<b>利用者の健康寿命を伸ばす</b>。美容や体型は目的でなく「健康寿命が伸びた結果＝見えるKPI」。フレーム＝<b>D1 見える化</b>＋<b>D3 積立</b>。</div>
+  <h1>🧬 ダッシュボード</h1>
+  <div class="northstar">🌟 北極星：<b>若さを保つ（見た目＋中身の二階建て）</b>／フレーム＝<b>D1 見える化</b>＋<b>D3 積立</b>。健康寿命は下支え。</div>
 </header>
+
+<script>
+(function(){
+  try{
+    const PCUR=localStorage.getItem('atelierSage.current.v1')||'default';
+    const ps=JSON.parse(localStorage.getItem('atelierSage.projects.v1'))||[];
+    const p=ps.find(x=>x.id===PCUR);
+    document.getElementById('topPn').textContent = p ? p.name : 'メイン';
+  }catch(e){}
+})();
+</script>
 
 <nav id="nav"></nav>
 <main>
