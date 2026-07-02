@@ -299,6 +299,32 @@
 
 ---
 
+## 🔄 第2巡（実現性検証：届出・複合化の空き地）
+
+### 🗂 新規ファクトカード
+
+| # | 事実 | 出典 | 示唆 |
+|---|---|---|---|
+| E-7 | **1商品に複数の機能性関与成分を届出することは制度上可能**（前例：ビルベリー由来アントシアニン＋ルテインの2成分届出等）。届出は販売60営業日前（新規成分は120日前） | 消費者庁ガイドライン／届出DB | B-e1「BJ×クレアチン」の**制度上の壁はない** |
+| E-8 | **クレアチンは機能性表示の届出実績あり**：2019年8月に第1号受理。クレアチンモノハイドレート**3g/日**で「適切な運動との併用で、加齢により低下する筋肉を作る力をサポートし、中高年の筋量・筋力の維持に役立つ」。DyDo・アサヒGF・日本予防医薬も参入済み | 健康産業新聞2024／e-expo | **SR実績成分**＝新規臨床なしの条件に合致。サルコペニア文脈で業界の注目も上昇中 |
+| E-9 | **エクオール×GABAは既に密集**：BELTAエクリズム（届出I771、プレエクオール+GABA）、小林製薬 命の母エクオール等が先行 | BELTA公式／小林製薬 | A-e1のGABA路線は**後発になる**。差別化は別の複合先で |
+| E-10 | **骨系クレームは実績潤沢**：大豆イソフラボン25mg/日で「骨成分の維持」届出多数（FANCL健骨サポート＝イソフラボン+カルシウム+ビタミンD、DyDo骨コツプロ、協和薬品A259）。骨の関与成分はマルトビオン酸Caと大豆イソフラボンが2大巨頭 | FANCL／DyDo／協和薬品 | 「エクオール本体×骨」の組みは**イソフラボン系より一段先**を行ける（産生能検査D1とも直結） |
+
+### 💡 芽のアップデート（第1巡→第2巡）
+
+| 芽 | 第2巡での判定 | 次の確認事項 |
+|---|---|---|
+| **B-e1 BJ×クレアチン筋トレ日サプリ** | ✅ **前進**。両成分ともSR実績あり・複数成分届出も可。「脂肪(BJ)×筋力(BJ+クレアチン)」の三重クレームが理論上組める | 原料単価（クレアチン3g/日は嵩張る→原価率30%制約との整合）、剤型（3gは錠剤不向き→粉末 or ゼリー） |
+| **A-e1 夜の複合ゼリー** | ⚠️ **方向修正**。GABA路線は密集→**「エクオール×骨（Ca+VD）」の骨分岐点路線**へ。イソフラボン骨クレームの実績に乗りつつ、エクオール配合＋産生能検査で一段差別化 | エクオール原単価、S-エクオール直接配合 vs ダイゼイン方式の原価差 |
+| A-e2 検査起点パーソナライズ | ✅ 維持（E-10の骨路線と統合可能） | 検査キット原価とCPA¥10,000制約の整合 |
+
+### 🔑 第2巡の結論
+1. **B-e1は「制度・実績」の両面でGOサインに近い**。残る関門は原価（クレアチン3g/日の嵩）と剤型のみ
+2. **🅰はGABAを捨てて骨へ**。「更年期は骨の分岐点」ナラティブ（Track-D）と完全に一直線になり、商品・検査・ストーリーが1本化する
+3. 次巡：**原料原価とロット**（BJ・クレアチン・S-エクオールのkg単価、最小ロット、OEM候補）を掘り、原価率30%制約に対する成立性を判定する
+
+---
+
 ## 📚 出典一覧
 - インテージ「成長トレンド続く男性化粧品市場」 https://www.intage.co.jp/news/5329/
 - TPCマーケティングリサーチ 2025メンズコスメ市場分析 https://www.tpc-cop.co.jp/topics/5865/
@@ -340,3 +366,13 @@
 - （Track-E）Straits グミサプリ市場 https://www.marketresearch.co.jp/insights/gummy-supplements-market-straits/
 - （Track-E）マイベスト エクオールサプリ2026 https://my-best.com/2905
 - （Track-E）PURAVIDA 男性更年期サプリ解説 https://www.sixthsenselab.jp/puravida/articles/male-menopause_supplement/
+- （Track-E2）消費者庁 機能性表示食品 届出マニュアル https://www.caa.go.jp/policies/policy/food_labeling/foods_with_function_claims/assets/food_labeling_cms205_240902_02.pdf
+- （Track-E2）健康産業新聞 サルコペニア対策でクレアチン存在感 https://www.kenko-media.com/health_idst/archives/15322
+- （Track-E2）e-expo クレアチン機能性原料特集 https://www.e-expo.net/information/creatine/
+- （Track-E2）ユニテックフーズ 中高年筋力維持クレアチン https://www.unitecfoods.co.jp/developmenttips/detail37.html
+- （Track-E2）BELTA エクリズム（エクオール×GABA I771） https://belta.co.jp/goods/equrhythm/
+- （Track-E2）小林製薬 命の母エクオール https://www.kobayashi.co.jp/brand/equol/about/
+- （Track-E2）FANCL 健骨サポート https://www.fancl.co.jp/healthy/item/5386a/
+- （Track-E2）DyDo 骨コツプロ https://www.dydo.co.jp/news/detail/20200117000000000.html
+- （Track-E2）協和薬品 健康骨々 A259 https://www.kyowa-brand.com/products/new/kotsukotsu_more.html
+- （Track-E2）J-STAGE 大豆イソフラボンの骨代謝調節作用 https://www.jstage.jst.go.jp/article/jsnfs/76/5/76_291/_pdf
