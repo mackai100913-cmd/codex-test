@@ -69,6 +69,15 @@
   .tg{font-size:10px;padding:1px 7px;border-radius:8px;background:var(--chip);color:var(--mut);border:1px solid var(--line)}
   .tg.conf{border:none}
   .empty{color:var(--mut);font-size:12px;text-align:center;padding:14px 0}
+  /* 空状態（最初の一手） */
+  .firstrun{grid-column:1/-1;text-align:center;padding:44px 20px;background:var(--panel);
+    border:1px dashed var(--line);border-radius:16px}
+  .fr-emoji{font-size:40px;line-height:1;margin-bottom:14px}
+  .fr-title{font-family:var(--serif);font-size:19px;color:var(--ink);margin-bottom:8px}
+  .fr-sub{font-size:13px;color:var(--mut);line-height:1.7;margin-bottom:20px}
+  .fr-btn{background:var(--acc);color:#fff;border:none;border-radius:10px;
+    padding:11px 20px;font-size:14px;font-family:inherit;font-weight:700;cursor:pointer}
+  .fr-btn:hover{background:var(--accA)}
   /* modal */
   .overlay{position:fixed;inset:0;background:rgba(31,42,36,.35);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
   .overlay.show{display:flex}
@@ -444,6 +453,20 @@ function buildDist(){
 /* ===== ボード ===== */
 function render(){
   buildCoach(); buildDist();
+  // 空状態：最初の一手を1つだけ提示（Apple流：迷わせない）
+  const board0=document.getElementById('board');
+  if(!cards.length){
+    document.getElementById('total').textContent='';
+    board0.innerHTML=`<div class="firstrun">
+      <div class="fr-emoji">📝</div>
+      <div class="fr-title">最初のカードを書いてみましょう</div>
+      <div class="fr-sub">上の欄に思いついたことを1つ書いて <b>Enter</b>。<br>事実・アイデア・問い、なんでもOK。AIが自動で仕分けます。</div>
+      <button class="fr-btn" id="frImport">📥 リサーチ成果20枚を入れて試す</button>
+    </div>`;
+    const fi=document.getElementById('frImport');
+    if(fi) fi.onclick=()=>document.getElementById('sampleBtn').click();
+    return;
+  }
   const gb=document.getElementById('groupBy').value;
   const q=document.getElementById('search').value.trim();
   let groups,keyOf,labelOf,colorOf=()=>'var(--acc)';
@@ -587,6 +610,21 @@ const RESEARCH=[
  {text:'剤型は2段ロケット：第1弾=粉末スティック → 実績が出たら第2弾=ゼリー（グミサプリCAGR10.8%、非習慣層への橋）',type:'idea',theme:'製品形態・UX',target:'共通',stage:'収束',conf:'中',reason:'Track-E3 剤型トレンド'},
  {text:'Lite¥3,480でクレアチン3g/日×30日分（計90g）を収める包装は？スティック30本か、袋+計量スプーンか',type:'question',theme:'製品形態・UX',target:'B',stage:'収束',conf:'中',reason:'Track-E3 未解決'},
  {text:'丸善製薬（BJ）・クレアチン原料・検査キットの正式見積もりを依頼する（机上調査はここが限界）',type:'task',theme:'課金・販売',target:'共通',stage:'実行',conf:'高',reason:'Track-E4 次アクション'},
+ // ── Track-F 成分の科学 ──
+ {text:'筋肉づくりはタンパク質単体では不足。ロイシンがmTOR（合成スイッチ）を刺激し、ビタミンD・B6・亜鉛が"効かせる工具"。最小セット=タンパク質(ロイシン源)+VD+B6+亜鉛',type:'fact',theme:'信頼・エビデンス',target:'B',stage:'検証',conf:'高',reason:'F 明治/森永/大正'},
+ {text:'タンパク質の吸収を助けるのはビタミンC（コラーゲン合成）とB6（アミノ酸代謝）。1回20-30g上限、分割摂取が効率的',type:'fact',theme:'信頼・エビデンス',target:'共通',stage:'検証',conf:'中',reason:'F 各記事'},
+ {text:'美容の入口成分は「ビタミンC」。①コラーゲン生成②メラニン抑制③抗酸化の一石三鳥。水溶性で貯まらずこまめ摂取が要。まず1つならVC',type:'fact',theme:'信頼・エビデンス',target:'A',stage:'検証',conf:'高',reason:'F アベンヌ/あおい皮フ科'},
+ {text:'アンチエイジングの本質は「酸化×糖化×炎症」の3経路を同時に遅らせること。抗酸化(VC/E,レスベラトロール)+抗糖化+NAD補充(NMN)。単一成分でなく多経路カバー',type:'insight',theme:'信頼・エビデンス',target:'共通',stage:'検証',conf:'中',reason:'F きだ内科/日清'},
+ {text:'飲む日焼け止めの主成分はニュートロックスサン(シトラス+ローズマリー)とPLエキス(シダ)。原理は塗る型と別で、紫外線で出る活性酸素を抗酸化で除去。UVは物理ブロックしない=塗る型の補完',type:'fact',theme:'信頼・エビデンス',target:'A',stage:'検証',conf:'高',reason:'F ジェネリオ/肌ルネ'},
+ {text:'飲む日焼け止め臨床例：Nestor 2015、PL240mg×2/日60日でMED増加・UV紅斑低下をプラセボ対比で確認。ただし単独では不十分、塗る＋飲む併用が前提',type:'fact',theme:'信頼・エビデンス',target:'A',stage:'検証',conf:'中',reason:'F Nestor2015'},
+ // ── Track-G 本質インサイト（3視点） ──
+ {text:'【①論文】筋トレ継続動機の因子分析(日本健康教育学会誌2019)：継続者は「楽しさ・高揚感」「依存・自尊」が顕著。体力向上4.02/体型維持3.98が上位、モテは主動機でない',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'高',reason:'G 論文視点'},
+ {text:'【②リサーチドリブン】筋トレ男性が払うのは筋肉でなく「衰えへの不安の先送り」。ジムは自己コントロール感の回復装置。活力市場は密集、維持×自尊の言葉が空いている',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'中',reason:'G リサーチ視点'},
+ {text:'【③5WHY】なぜ筋トレ→体を変えたい→自信→加齢で揺らぐ→評価が外見と結びつく→唯一自分で変えられるのが身体→真因：自己効力感(コントロールできる感覚)の回復',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'中',reason:'G 5WHY視点'},
+ {text:'【①調査】男性美容：Z世代関心71.9%だが実践34%・メイク7%。関心と実践に大きなギャップ。習慣化に落ちていない',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'高',reason:'G 論文視点'},
+ {text:'【②リサーチドリブン】男性美容の動機は加点(モテ)でなく減点回避(清潔感)。恥ずかしさの摩擦で実践が止まる→言い換え(美容→自己投資)と剤型で摩擦を外せる',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'中',reason:'G リサーチ視点'},
+ {text:'【③5WHY】なぜ美容→清潔感→不潔と思われたくない→対人で減点→第一印象が評価に直結→やり直せない→真因：やり直しの効かない他者評価への防御的投資',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'中',reason:'G 5WHY視点'},
+ {text:'【統合】筋トレも美容も男性の本質は「モテ」でなく「コントロール／減点回避＝自己管理の証明」で一致。北極星"若さを保つ"と重なる。訴求は攻めより"自分で管理できる部分を積み上げる"',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'高',reason:'G 統合'},
 ];
 document.getElementById('sampleBtn').onclick=()=>{
   const exist=new Set(cards.map(c=>c.text));
