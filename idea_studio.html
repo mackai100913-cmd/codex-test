@@ -138,7 +138,7 @@
   <div class="menupop" id="menuPop" role="dialog" aria-modal="true">
     <div class="sheet">
       <button class="mi" id="bulkBtn">📋 行ごとに一括追加</button>
-      <button class="mi" id="sampleBtn">🎁 サンプルを投入</button>
+      <button class="mi" id="sampleBtn">📥 リサーチ成果を取込</button>
       <div class="div"></div>
       <button class="mi" id="setBtn">⚙ AI分類の設定 <span class="aibadge" id="aiBadge" style="margin-left:auto">ローカル</span></button>
       <div class="div"></div>
@@ -565,18 +565,40 @@ document.getElementById('fileIn').onchange=e=>{
   r.readAsText(f); e.target.value='';
 };
 
-/* ===== サンプル / 全消去 ===== */
-const SAMPLE=[
- '機能性表示で「筋肉を増やす」は言えないが「歩く・立つ力の維持」なら届出できる',
- '男性は美容と言うと恥ずかしい → 「自己投資・コンディショニング」に言い換える',
- 'ブラックジンジャーは脂肪と脚の筋力の両方で届出例がある二刀流成分',
- '剤型はおにぎりやスープでもいいのでは？プロテイン以外で未利用の女性に届く',
- 'エクオール×米セラミドの夜のホルモン美容ゼリーを試作してみる',
- 'Lite¥3,480とPremium¥9,800、どっちを入口にすべきか？',
- 'chocoZAP会員120万人・女性52%は最大の見込み客プール（事実）',
- '更年期は美容問題でなく健康寿命の分岐点、という打ち出しに決定',
+/* ===== リサーチ成果（IDEA_BOOK Track-E 4巡分） / 全消去 ===== */
+const RESEARCH=[
+ {text:'BJ（ブラックジンジャー）の機能性表示は「脂肪」訴求が乱立、「筋力」クレームを載せた商品はまだ希少。エスビー2025年参入も脂肪+血糖のみ → 筋×脂肪の二刀流枠は空白',type:'fact',theme:'市場・データ',target:'B',stage:'検証',conf:'高',reason:'Track-E1 食品新聞'},
+ {text:'日本のクレアチン市場はCAGR16.75%（〜2035）で筋トレサプリ最速成長。プロテインは7.9%で成熟期へ',type:'fact',theme:'市場・データ',target:'B',stage:'検証',conf:'高',reason:'Track-E1 Spherical'},
+ {text:'フェムケア&フェムテック市場は2025年888.6億円（前年比110.5%）。更年期ケアが不妊・妊活を逆転し最大セグメントに',type:'fact',theme:'市場・データ',target:'A',stage:'検証',conf:'高',reason:'Track-E1 矢野経済'},
+ {text:'1商品に複数の機能性関与成分を届出することは制度上可能（前例：アントシアニン+ルテイン等）',type:'fact',theme:'法規・品質',target:'共通',stage:'検証',conf:'高',reason:'Track-E2 消費者庁'},
+ {text:'クレアチンは機能性表示の届出実績あり：3g/日「運動併用で中高年の筋量・筋力の維持」。DyDo・アサヒGF参入済み',type:'fact',theme:'法規・品質',target:'B',stage:'検証',conf:'高',reason:'Track-E2 健康産業新聞'},
+ {text:'エクオール×GABAはBELTA（届出I771）・命の母エクオールが先行済み＝密集。後発になる',type:'fact',theme:'市場・データ',target:'A',stage:'検証',conf:'高',reason:'Track-E2 BELTA/小林'},
+ {text:'骨クレームは大豆イソフラボン25mg/日で届出実績潤沢（FANCL健骨サポート・DyDo骨コツプロ・協和薬品A259）',type:'fact',theme:'法規・品質',target:'A',stage:'検証',conf:'高',reason:'Track-E2 FANCL他'},
+ {text:'エクオール原料は実質ダイセル1社供給（大塚は外販せず）＋製法特許係争の経緯あり。調達リスク高',type:'risk',theme:'法規・品質',target:'A',stage:'収束',conf:'高',reason:'Track-E4 ウェルネスDN'},
+ {text:'BJ原料は丸善製薬が機能性表示対応素材として供給：PMF12mg/日=抽出物150mg/日。ゼリー配合向けクリアBJもあり',type:'fact',theme:'法規・品質',target:'B',stage:'検証',conf:'高',reason:'Track-E3 丸善製薬'},
+ {text:'クレアチンは小売でも1kg¥3,000-4,000 → 月90g分の原料費は数百円。原価率30%の脅威にならない',type:'fact',theme:'課金・販売',target:'B',stage:'検証',conf:'中',reason:'Track-E3 グロング等'},
+ {text:'サプリOEMは最小500個・初回50〜100万円が相場。粉末・錠剤は安く、ゼリー・カプセルは設備要件で高い',type:'fact',theme:'課金・販売',target:'共通',stage:'検証',conf:'中',reason:'Track-E3 シンギー他'},
+ {text:'D2C定期の月次解約率は3-5%以下が標準・3%以下が理想。3ヶ月まとめコースでLTV約1.5倍の事例',type:'fact',theme:'課金・販売',target:'共通',stage:'検証',conf:'中',reason:'Track-E4 EC-tsumugu'},
+ {text:'クレアチンはISSN（国際スポーツ栄養学会）が短期・長期とも安全と結論。BJとの相互作用報告なし（NSAIDs常用・利尿薬は注意表示を）',type:'fact',theme:'信頼・エビデンス',target:'B',stage:'検証',conf:'高',reason:'Track-E4 ISSN'},
+ {text:'筋トレ継続動機の査読研究：体力向上4.02・体型維持3.98・健康3.90が上位。「モテたい（外観）」は主動機でない（日本健康教育学会誌2019）',type:'fact',theme:'ターゲット・動機',target:'B',stage:'検証',conf:'高',reason:'動機research 3-0確認'},
+ {text:'「活力・精力」枠は密集市場 → 「維持・コンディショニング」の言葉設計で差別化（動機研究と整合）',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'中',reason:'Track-E1+動機research'},
+ {text:'第1弾候補：🅱 BJ×クレアチンの「筋トレ日」粉末スティック。脂肪×筋力の二刀流で空白の筋力枠を先取り（4巡リサーチで赤信号ゼロ）',type:'idea',theme:'製品形態・UX',target:'B',stage:'収束',conf:'高',reason:'Track-E4 総括'},
+ {text:'🅰は大豆イソフラボン×骨（Ca/VD）を主軸に、エクオール&産生能検査は上位アドオンに格下げ（単一供給・特許リスク回避）',type:'idea',theme:'製品形態・UX',target:'A',stage:'収束',conf:'中',reason:'Track-E4 総括'},
+ {text:'剤型は2段ロケット：第1弾=粉末スティック → 実績が出たら第2弾=ゼリー（グミサプリCAGR10.8%、非習慣層への橋）',type:'idea',theme:'製品形態・UX',target:'共通',stage:'収束',conf:'中',reason:'Track-E3 剤型トレンド'},
+ {text:'Lite¥3,480でクレアチン3g/日×30日分（計90g）を収める包装は？スティック30本か、袋+計量スプーンか',type:'question',theme:'製品形態・UX',target:'B',stage:'収束',conf:'中',reason:'Track-E3 未解決'},
+ {text:'丸善製薬（BJ）・クレアチン原料・検査キットの正式見積もりを依頼する（机上調査はここが限界）',type:'task',theme:'課金・販売',target:'共通',stage:'実行',conf:'高',reason:'Track-E4 次アクション'},
 ];
-document.getElementById('sampleBtn').onclick=async()=>{for(const s of SAMPLE)await addCard(s)};
+document.getElementById('sampleBtn').onclick=()=>{
+  const exist=new Set(cards.map(c=>c.text));
+  let n=0;
+  for(const r of RESEARCH){
+    if(exist.has(r.text))continue;
+    const c=normalizeCard(Object.assign({},r));
+    if(c){cards.push(c);n++;}
+  }
+  save();render();
+  alert(n?('リサーチカードを'+n+'枚取り込みました'):'すでに全て取り込み済みです');
+};
 document.getElementById('clearBtn').onclick=()=>{if(confirm('すべてのカードを消去しますか？（取り消せません）')){cards=[];save();render()}};
 
 /* ===== イベント ===== */
