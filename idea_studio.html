@@ -625,6 +625,18 @@ const RESEARCH=[
  {text:'【②リサーチドリブン】男性美容の動機は加点(モテ)でなく減点回避(清潔感)。恥ずかしさの摩擦で実践が止まる→言い換え(美容→自己投資)と剤型で摩擦を外せる',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'中',reason:'G リサーチ視点'},
  {text:'【③5WHY】なぜ美容→清潔感→不潔と思われたくない→対人で減点→第一印象が評価に直結→やり直せない→真因：やり直しの効かない他者評価への防御的投資',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'中',reason:'G 5WHY視点'},
  {text:'【統合】筋トレも美容も男性の本質は「モテ」でなく「コントロール／減点回避＝自己管理の証明」で一致。北極星"若さを保つ"と重なる。訴求は攻めより"自分で管理できる部分を積み上げる"',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'高',reason:'G 統合'},
+ // ── Track-H EAA/ロイシン×アンチエイジング（ステップ1データ収集） ──
+ {text:'【核心パラドックス】ロイシンは筋肉のアクセル(mTOR活性化)だが、mTORの慢性活性化は老化を早める。同じ経路が筋肉には善・長寿には悪。ここを解けば商品の核になる',type:'insight',theme:'信頼・エビデンス',target:'共通',stage:'発散',conf:'高',reason:'H 核心'},
+ {text:'【①論文】ロイシンはmTORC1を活性化し筋合成を促進、運動併用で増強。HMBはロイシンと独立経路でmTORC1を活性化。HMB+アルギニン+リシンで高齢者の筋力・身体機能が有意向上(RCT)',type:'fact',theme:'信頼・エビデンス',target:'B',stage:'検証',conf:'高',reason:'H SNDJ/3c'},
+ {text:'【①論文】逆にBCAA/タンパク質の摂取制限はmTORを調節し寿命を延ばしうる(ショウジョウバエ・マウス, Natureダイジェスト)。ヒト高齢者への食餌制限推奨は時期尚早',type:'fact',theme:'信頼・エビデンス',target:'共通',stage:'検証',conf:'中',reason:'H Nature'},
+ {text:'【①論文】解消の鍵=タイミング/サイクリング。筋トレ日はmTOR優先(EAA)、休息日は断食/カロリー制限でmTOR抑制・AMPK/オートファジー活性化を交互に。BFRなら中高年でも高負荷並みにmTORC1活性化',type:'fact',theme:'信頼・エビデンス',target:'共通',stage:'検証',conf:'中',reason:'H 大紀元/BFR協会'},
+ {text:'【①論文】肌側：コラーゲンペプチド経口でGly-Pro-Hyp等が血中・皮膚に到達し肌水分・弾力が改善(分解されずペプチドで届く)。グリシンはグルタチオン材料で抗酸化にも(FANCL/ナールス)',type:'fact',theme:'信頼・エビデンス',target:'A',stage:'検証',conf:'高',reason:'H FANCL'},
+ {text:'【②リサーチドリブン】既存EAA/HMB市場は「筋肉を増やす」一色。長寿・抗老化と結ぶ商品はほぼ無い=賢いアクセルの踏み方を売る枠が空白。抗老化層はmTOR抑えたい・筋トレ層は上げたいで真逆だが、本当は両方欲しい',type:'insight',theme:'市場・データ',target:'共通',stage:'発散',conf:'中',reason:'H リサーチ視点'},
+ {text:'【③5WHY】なぜEAA→筋肉維持→衰えたくない→老けたと判定されるのが怖い→老化は不可抗力で抗う手段が少ない→自分でコントロールできる介入に価値集中→真因：人は"老化に能動的に手を打てている感覚"に金を払う',type:'insight',theme:'ターゲット・動機',target:'共通',stage:'発散',conf:'中',reason:'H 5WHY視点'},
+ {text:'【H統合】EAA×抗老化の勝ち筋は「増やす」でなく「賢く使い分ける(サイクリング)」。筋のアクセル(ロイシン/HMB)と細胞のブレーキ(抗酸化/オートファジー/断食支援)を曜日やオン/オフで最適化=空白地帯',type:'insight',theme:'製品形態・UX',target:'共通',stage:'発散',conf:'高',reason:'H 統合'},
+ {text:'【種H-e1】オン/オフ2剤：トレ日パウチ(ロイシン/HMB=アクセル)＋休息日パウチ(グリシン/抗酸化=ブレーキ)。曜日で飲み分ける"若さのギア"サプリ',type:'idea',theme:'製品形態・UX',target:'共通',stage:'発散',conf:'中',reason:'H 種'},
+ {text:'【種H-e4】筋×肌の同時ケア：ロイシン系(中身の若さ)＋コラーゲンペプチドGly-Pro-Hyp(見た目の若さ)を1本に。北極星"見た目＋中身"を成分レベルで体現',type:'idea',theme:'製品形態・UX',target:'共通',stage:'発散',conf:'中',reason:'H 種'},
+ {text:'【種H-e5】"二重のコントロール感"の見える化：筋量(体組成)と肌/抗酸化マーカーの両方をレポート。D1見える化と直結',type:'idea',theme:'見える化・測定',target:'共通',stage:'発散',conf:'中',reason:'H 種'},
 ];
 document.getElementById('sampleBtn').onclick=()=>{
   const exist=new Set(cards.map(c=>c.text));
