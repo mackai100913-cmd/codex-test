@@ -649,6 +649,18 @@ const RESEARCH=[
  {text:'【種I-e3】免罪符メッセージング：「食事制限しなくて大丈夫。あなたの"まあいっか"を栄養で埋めます」を軸コピーに(オイシックス転用)',type:'idea',theme:'ターゲット・動機',target:'共通',stage:'発散',conf:'中',reason:'I 種'},
  {text:'【種I-e4】"若さの積立"終身/年間プラン。Calm式の情緒的長期コミット。貯筋/貯肌通帳の可視化と一体',type:'idea',theme:'課金・販売',target:'共通',stage:'発散',conf:'中',reason:'I 種'},
  {text:'【種I-e5】指名制"肌×筋トレ・アドバイザー"のLINE伴走。新概念「美肌×筋肉」を対面教育の転用で納得させる(松下×資生堂転用)',type:'idea',theme:'コミュニティ',target:'共通',stage:'発散',conf:'中',reason:'I 種'},
+ // ── Track-J 収束（第1弾プロダクト確定） ──
+ {text:'【壁①】ニキビは皮膚疾患なので機能性表示食品では予防・改善を謳えない(消費者庁)。→亜鉛・B6の栄養機能表示「皮膚や粘膜の健康維持を助ける」に着地させる',type:'risk',theme:'法規・品質',target:'共通',stage:'収束',conf:'高',reason:'J 法規の壁'},
+ {text:'【壁②】1000mg超でカプセル3-4粒必要。ロイシン2.5g/HMB3g/クレアチン3g/コラーゲン5gは極小タブレットに物理的に入らない',type:'risk',theme:'製品形態・UX',target:'共通',stage:'収束',conf:'高',reason:'J 処方の壁'},
+ {text:'【壁②の解】「材料を供給する」→「食べた材料を効かせる」に反転。VD(mTOR活性化)・B6(アミノ酸代謝)・亜鉛はmg単位で小粒に入る。制約と価値提案が一致した',type:'insight',theme:'製品形態・UX',target:'共通',stage:'収束',conf:'高',reason:'J 突破口'},
+ {text:'【壁③の解】アミノ酸を供給しない設計なのでmTORを踏み続けない。食事が入った時だけ効率を上げる=間欠的。これが抗老化上の優位性になる',type:'insight',theme:'信頼・エビデンス',target:'共通',stage:'収束',conf:'中',reason:'J 抗老化整合'},
+ {text:'【確定】SWITCH「食べたものを、効かせる。」1日2粒(有効成分620mg)。関与成分=BJ由来PMF12mg＋ニュートロックスサン250mg。栄養機能=亜鉛/B6/VD/リポソームVC',type:'decision',theme:'製品形態・UX',target:'共通',stage:'収束',conf:'高',reason:'J 商品確定'},
+ {text:'【コンセプト】「タンパク質を足さずに、食べたものを効かせる。だから肌も荒れず、老化も加速させない。」プロテイン企業は量を売るので追随できない引き算の設計',type:'decision',theme:'ターゲット・動機',target:'共通',stage:'収束',conf:'高',reason:'J コンセプト'},
+ {text:'【価格】月¥4,980／初回¥2,480＋名入れキープ缶／3ヶ月¥13,440。目標解約率3%以下・原価率30%以下',type:'decision',theme:'課金・販売',target:'共通',stage:'収束',conf:'中',reason:'J 価格'},
+ {text:'ニュートロックスサンの原料単価を最優先で見積もり依頼する。原価率30%の成否はほぼここで決まる唯一の未知数',type:'task',theme:'課金・販売',target:'共通',stage:'実行',conf:'高',reason:'J P0最優先'},
+ {text:'丸善製薬(BJ抽出物150mg/日)・OEM3社(小粒2粒+リポソームVC可否)へ見積もり依頼する',type:'task',theme:'課金・販売',target:'共通',stage:'実行',conf:'高',reason:'J P0'},
+ {text:'機能性表示食品DBでニュートロックスサンの既存届出の表現を実地照合し、言える文言を確定する',type:'task',theme:'法規・品質',target:'共通',stage:'実行',conf:'高',reason:'J P0'},
+ {text:'禁止ワード表を確定し社内・制作会社へ配布（✕ニキビが治る/筋肉が増える/日焼けしない/痩せる ○皮膚の健康維持/脚の筋肉を維持/脂肪を消費しやすく）',type:'task',theme:'法規・品質',target:'共通',stage:'実行',conf:'高',reason:'J P0'},
 ];
 document.getElementById('sampleBtn').onclick=()=>{
   const exist=new Set(cards.map(c=>c.text));
