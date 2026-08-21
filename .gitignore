@@ -1,0 +1,18 @@
+# 環境変数（APIキー）
+.env
+
+# Geminiウェブ自動操作のログインプロファイル
+.gemini_profile/
+
+# 生成物（アップロード用パッケージ）
+output/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# OS
+.DS_Store

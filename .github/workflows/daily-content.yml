@@ -1,0 +1,91 @@
+name: ズルめし完全版｜毎朝6時画像制作
+
+on:
+  schedule:
+    - cron: "0 21 * * *" # JST 06:00
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: "テスト対象日 YYYY-MM-DD（空欄なら日本時間の当日）"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths:
+      - "zurumeshi_daily.py"
+      - ".github/workflows/daily-content.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 日本語フォント
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk fonts-ipafont-gothic fonts-ipafont-mincho
+
+      - name: 依存インストール
+        run: pip install "google-genai>=0.8.0" "Pillow>=10.0.0"
+
+      - name: 対象日を決定
+        id: target
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.target_date }}" ]; then
+            TARGET_DATE="${{ github.event.inputs.target_date }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            # 本番前の自動テスト。承認済みテスト対象017を固定。
+            TARGET_DATE="2026-08-22"
+          else
+            TARGET_DATE="$(TZ=Asia/Tokyo date +%F)"
+          fi
+          echo "date=$TARGET_DATE" >> "$GITHUB_OUTPUT"
+          echo "TARGET_DATE=$TARGET_DATE"
+
+      - name: APIキー確認
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          test -n "$GEMINI_API_KEY" || (echo "GEMINI_API_KEY is missing" && exit 1)
+
+      - name: 表紙・レシピカード・投稿文を生成
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_IMAGE_MODEL: ${{ vars.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview' }}
+          GEMINI_TEXT_MODEL: ${{ vars.GEMINI_TEXT_MODEL || 'gemini-3-pro' }}
+        run: python zurumeshi_daily.py --date "${{ steps.target.outputs.date }}"
+
+      - name: 生成物QA
+        shell: bash
+        run: |
+          test "$(find output -name 'slide_01_cover.jpg' | wc -l)" -eq 1
+          test "$(find output -name 'slide_02_recipe.jpg' | wc -l)" -eq 1
+          test "$(find output -name 'caption.txt' | wc -l)" -eq 1
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          files = list(Path('output').glob('**/slide_0*.jpg'))
+          assert len(files) == 2, files
+          for p in files:
+              with Image.open(p) as im:
+                  assert im.size == (864, 1536), (p, im.size)
+          print('QA PASS: 2 images are 864x1536 and caption exists')
+          PY
+
+      - name: 生成物をアーティファクト化
+        uses: actions/upload-artifact@v4
+        with:
+          name: zurumeshi-${{ steps.target.outputs.date }}-${{ github.run_number }}
+          path: output/
+          retention-days: 14
+          if-no-files-found: error

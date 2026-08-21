@@ -1,0 +1,90 @@
+# =============================================================
+# Geminiウェブ版(gemini.google.com)を自動操作するためのセレクタ設定。
+# GeminiのUI変更でうまく動かなくなったら、ブラウザの「検証(F12)」で
+# 要素を調べ、ここのセレクタを書き換えてください（コード変更不要）。
+# 複数候補を上から順に試します。
+# =============================================================
+
+# プロンプト入力欄（contenteditable のリッチテキスト）
+input_box:
+  - 'div.ql-editor[contenteditable="true"]'
+  - 'rich-textarea div[contenteditable="true"]'
+  - 'div[contenteditable="true"][role="textbox"]'
+  - 'textarea'
+
+# 送信ボタン
+send_button:
+  - 'button[aria-label="送信"]'
+  - 'button[aria-label="Send message"]'
+  - 'button[aria-label*="送信"]'
+  - 'button[aria-label*="Send"]'
+  - 'button.send-button'
+
+# 新しいチャットを始めるボタン（任意・無ければスキップ）
+new_chat_button:
+  - 'button[aria-label="新しいチャット"]'
+  - 'button[aria-label="New chat"]'
+  - 'a[aria-label*="新しいチャット"]'
+
+# サイドバー(過去チャット履歴)を開くメニューボタン
+menu_button:
+  - 'button[aria-label="メインメニュー"]'
+  - 'button[aria-label="Main menu"]'
+  - 'button[aria-label*="メニュー"]'
+  - 'button[aria-label*="menu"]'
+
+# 応答内に生成された画像
+response_image:
+  - 'message-content img'
+  - 'model-response img'
+  - 'div.response-container img'
+  - 'img[src^="https://"]'
+  - 'img[src^="data:image"]'
+  - 'img[src^="blob:"]'
+
+# ログイン済みかの判定に使う要素（これが見えたらログイン済みとみなす）
+logged_in_marker:
+  - 'div.ql-editor[contenteditable="true"]'
+  - 'rich-textarea'
+
+# 画像をアップロードするための隠しファイル入力（審査でGeminiに画像を見せる用）。
+# まずこの input[type=file] に直接ファイルをセットする方式を最優先で試す。
+file_input:
+  - 'input[type="file"]'
+
+# 「＋」やクリップ等のアップロードを開くボタン（file_inputが無い時のフォールバック）。
+# クリックするとOS/ブラウザのファイル選択(file chooser)が開く想定。
+upload_button:
+  - 'button[aria-label="ファイルをアップロード"]'
+  - 'button[aria-label="Upload file"]'
+  - 'button[aria-label*="アップロード"]'
+  - 'button[aria-label*="upload"]'
+  - 'button[aria-label="ファイルを追加"]'
+  - 'button[aria-label*="Add files"]'
+  - 'button[aria-label*="添付"]'
+
+# アップロードのサブメニュー項目（＋ボタンでメニューが開くタイプのUI用）。
+upload_menu_item:
+  - 'button:has-text("ファイルをアップロード")'
+  - 'button:has-text("アップロード")'
+  - 'button:has-text("Upload files")'
+  - '[role="menuitem"]:has-text("アップロード")'
+  - '[role="menuitem"]:has-text("Upload")'
+
+# 画像添付が成功したかの確認に使う「添付チップ/サムネイル」。これが現れたら添付成功とみなす。
+attachment_chip:
+  - 'input[type="file"] ~ * img'
+  - '[data-test-id*="file"], [data-test-id*="attachment"]'
+  - 'div[role="img"]'
+  - 'uploader-file-preview'
+  - 'mat-chip'
+  - 'img[alt*="アップロード"], img[alt*="upload"]'
+
+# モデルの応答テキスト（審査JSONをここから読み取る）。最後の要素を最新応答とみなす。
+response_text:
+  - 'message-content.model-response-text'
+  - 'model-response message-content'
+  - 'model-response .markdown'
+  - 'div.response-container .markdown'
+  - 'model-response'
+  - 'message-content'
