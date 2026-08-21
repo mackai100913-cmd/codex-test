@@ -24,6 +24,9 @@ concurrency:
   group: zurumeshi-daily-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  ZURUMESHI_GEMINI_KEY: ${{ secrets.GEMINI_API_KEY || secrets.GOOGLE_API_KEY || secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+
 jobs:
   generate:
     runs-on: ubuntu-latest
@@ -59,17 +62,15 @@ jobs:
           echo "TARGET_DATE=$TARGET_DATE"
 
       - name: APIキー確認
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          if [ -z "$GEMINI_API_KEY" ]; then
-            echo "::error title=GEMINI_API_KEY未設定::GitHub Actions repository secret『GEMINI_API_KEY』が必要です。画像生成工程はこのキーが無いと実行できません。"
+          if [ -z "$ZURUMESHI_GEMINI_KEY" ]; then
+            echo "::error title=画像生成APIキー未設定::GitHub Actions repository secret に GEMINI_API_KEY（推奨）/ GOOGLE_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY のいずれかが必要です。"
             exit 1
           fi
 
       - name: 表紙・レシピカード・投稿文を生成
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY: ${{ env.ZURUMESHI_GEMINI_KEY }}
           GEMINI_IMAGE_MODEL: ${{ vars.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview' }}
           GEMINI_TEXT_MODEL: ${{ vars.GEMINI_TEXT_MODEL || 'gemini-3-pro' }}
         run: python zurumeshi_daily.py --date "${{ steps.target.outputs.date }}"
