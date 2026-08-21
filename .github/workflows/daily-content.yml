@@ -18,7 +18,11 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: zurumeshi-daily-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   generate:
@@ -58,7 +62,10 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          test -n "$GEMINI_API_KEY" || (echo "GEMINI_API_KEY is missing" && exit 1)
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error title=GEMINI_API_KEY未設定::GitHub Actions repository secret『GEMINI_API_KEY』が必要です。画像生成工程はこのキーが無いと実行できません。"
+            exit 1
+          fi
 
       - name: 表紙・レシピカード・投稿文を生成
         env:
@@ -73,6 +80,7 @@ jobs:
           test "$(find output -name 'slide_01_cover.jpg' | wc -l)" -eq 1
           test "$(find output -name 'slide_02_recipe.jpg' | wc -l)" -eq 1
           test "$(find output -name 'caption.txt' | wc -l)" -eq 1
+          test "$(find output -name 'recipe.json' | wc -l)" -eq 1
           python - <<'PY'
           from pathlib import Path
           from PIL import Image
@@ -81,7 +89,11 @@ jobs:
           for p in files:
               with Image.open(p) as im:
                   assert im.size == (864, 1536), (p, im.size)
-          print('QA PASS: 2 images are 864x1536 and caption exists')
+          captions = list(Path('output').glob('**/caption.txt'))
+          recipes = list(Path('output').glob('**/recipe.json'))
+          assert len(captions) == 1 and captions[0].stat().st_size > 100
+          assert len(recipes) == 1 and recipes[0].stat().st_size > 100
+          print('QA PASS: cover + recipe card are separate 864x1536 images and text assets exist')
           PY
 
       - name: 生成物をアーティファクト化
@@ -91,3 +103,31 @@ jobs:
           path: output/
           retention-days: 14
           if-no-files-found: error
+
+      - name: 日付別の完成ファイルをリポジトリへ保存
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          SRC_DIR="$(find output -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          test -n "$SRC_DIR"
+          DEST="published/${{ steps.target.outputs.date }}"
+          rm -rf "$DEST"
+          mkdir -p "$DEST"
+          cp "$SRC_DIR/slide_01_cover.jpg" "$DEST/slide_01_cover.jpg"
+          cp "$SRC_DIR/slide_02_recipe.jpg" "$DEST/slide_02_recipe.jpg"
+          cp "$SRC_DIR/caption.txt" "$DEST/caption.txt"
+          cp "$SRC_DIR/recipe.json" "$DEST/recipe.json"
+          printf '{"date":"%s","status":"PASS","cover":"published/%s/slide_01_cover.jpg","recipe_card":"published/%s/slide_02_recipe.jpg","caption":"published/%s/caption.txt"}\n' \
+            "${{ steps.target.outputs.date }}" \
+            "${{ steps.target.outputs.date }}" \
+            "${{ steps.target.outputs.date }}" \
+            "${{ steps.target.outputs.date }}" > published/latest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add published
+          if git diff --cached --quiet; then
+            echo "No published changes"
+          else
+            git commit -m "Publish Zurumeshi ${{ steps.target.outputs.date }}"
+            git push
+          fi
