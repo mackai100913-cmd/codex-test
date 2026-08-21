@@ -14,6 +14,8 @@ on:
     paths:
       - "zurumeshi_daily.py"
       - ".github/workflows/daily-content.yml"
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -43,8 +45,8 @@ jobs:
         run: |
           if [ -n "${{ github.event.inputs.target_date }}" ]; then
             TARGET_DATE="${{ github.event.inputs.target_date }}"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            # 本番前の自動テスト。承認済みテスト対象017を固定。
+          elif [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
+            # 本番前E2Eテスト。承認済みテスト対象017を固定。
             TARGET_DATE="2026-08-22"
           else
             TARGET_DATE="$(TZ=Asia/Tokyo date +%F)"
