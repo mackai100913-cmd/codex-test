@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アイデア・スタジオ — 情報カード伴走</title>
+<style>
+  :root{
+    /* Atelier Sage tokens — 紙と苔の単一トークン */
+    --surface-bg:#F4EFE6; --bg:#F4EFE6; --panel:#FBF7EF; --panel2:#F4EFE6; --line:#D9D2C4;
+    --ink:#1F2A24; --txt:#2E3A33; --mut:#5A6B61; --acc:#3F6B4E; --accB:#3F6B4E; --accA:#B5562C;
+    --warn:#B5562C; --chip:#EEE6D3; --vio:#3F6B4E; --org:#B5562C; --red:#B5562C;
+    --serif:Georgia,'游明朝','Yu Mincho',serif;
+    --sans:system-ui,-apple-system,'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;
+  }
+  *{box-sizing:border-box}
+  :focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+  button:active{transform:translateY(1px)}
+  @media(pointer:coarse){button{min-height:40px}}
+  body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--txt);line-height:1.65;letter-spacing:.01em;-webkit-font-smoothing:antialiased}
+  header{padding:18px 16px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+  h1{margin:0;font-family:var(--serif);font-weight:400;font-size:20px;color:var(--ink);letter-spacing:0}
+  .sub{color:var(--mut);font-size:12px;margin-top:3px}
+  .northstar{margin-top:9px;padding:9px 11px;background:var(--bg);border:1px solid var(--line);border-radius:10px;font-size:12px;color:var(--txt)}
+  .northstar b{color:var(--acc)}
+  main{padding:14px;max-width:1180px;margin:0 auto}
+  .toolbar{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:14px}
+  textarea#input{width:100%;min-height:56px;resize:vertical;padding:10px 12px;border-radius:10px;
+    border:1px solid var(--line);background:var(--bg);color:var(--txt);font-size:14px;font-family:inherit}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:9px}
+  button{background:var(--panel2);color:var(--txt);border:1px solid var(--line);padding:8px 14px;
+    border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;transition:.15s}
+  button:hover{border-color:var(--acc)}
+  button.primary{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:700}
+  button.ghost{background:transparent;color:var(--mut);padding:6px 10px}
+  button.sm{padding:5px 9px;font-size:12px}
+  select,input.txt{background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:9px;
+    padding:7px 9px;font-size:13px;font-family:inherit}
+  .spacer{flex:1}
+  .aibadge{font-size:11px;padding:3px 9px;border-radius:20px;border:1px solid var(--line);color:var(--mut)}
+  .aibadge.on{background:#EAF2EC;color:var(--acc);border-color:var(--acc);font-weight:700}
+  /* companion */
+  .coach{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:14px}
+  .coach h3{margin:0 0 8px;font-family:var(--serif);font-weight:400;font-size:15px;color:var(--ink);display:flex;align-items:center;gap:6px}
+  .obs{display:flex;gap:9px;align-items:flex-start;font-size:13px;padding:6px 0;border-top:1px solid var(--line)}
+  .obs:first-of-type{border-top:none}
+  .obs .ic{flex:0 0 auto;font-size:15px}
+  .obs b{color:var(--ink)}
+  .nextline{margin-top:9px;padding:9px 11px;background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:8px;font-size:13px;color:var(--txt);font-family:var(--serif)}
+  .nextline b{color:var(--accA)}
+  /* distribution */
+  .dist{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .dist .b{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:6px 11px;font-size:12px;color:var(--mut)}
+  .dist .b b{color:var(--txt);font-size:15px;margin-right:3px}
+  /* board controls */
+  .bc{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .bc .lbl{font-size:12px;color:var(--mut)}
+  /* board */
+  .board{display:grid;gap:12px;grid-template-columns:1fr}
+  @media(min-width:720px){.board{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;min-height:60px}
+  .col h4{margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:6px}
+  .col h4 .cnt{margin-left:auto;font-size:11px;color:var(--mut);background:var(--panel2);border-radius:10px;padding:1px 8px}
+  .ic-card{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--acc);
+    border-radius:9px;padding:9px 10px;margin-bottom:8px;cursor:pointer;transition:.12s}
+  .ic-card:hover{border-color:var(--accB);transform:translateY(-1px)}
+  .ic-card .txt{font-size:13px;white-space:pre-wrap;word-break:break-word}
+  .ic-card .tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+  .tg{font-size:10px;padding:1px 7px;border-radius:8px;background:var(--chip);color:var(--mut);border:1px solid var(--line)}
+  .tg.conf{border:none}
+  .empty{color:var(--mut);font-size:12px;text-align:center;padding:14px 0}
+  /* 空状態（最初の一手） */
+  .firstrun{grid-column:1/-1;text-align:center;padding:44px 20px;background:var(--panel);
+    border:1px dashed var(--line);border-radius:16px}
+  .fr-emoji{font-size:40px;line-height:1;margin-bottom:14px}
+  .fr-title{font-family:var(--serif);font-size:19px;color:var(--ink);margin-bottom:8px}
+  .fr-sub{font-size:13px;color:var(--mut);line-height:1.7;margin-bottom:20px}
+  .fr-btn{background:var(--acc);color:#fff;border:none;border-radius:10px;
+    padding:11px 20px;font-size:14px;font-family:inherit;font-weight:700;cursor:pointer}
+  .fr-btn:hover{background:var(--accA)}
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(31,42,36,.35);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:560px;width:100%;max-height:90vh;overflow:auto}
+  .modal h3{margin:0 0 12px;font-size:15px}
+  .modal label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+  .modal textarea{width:100%;min-height:80px;resize:vertical;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--txt);font-size:14px;font-family:inherit}
+  .selgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .modal select{width:100%}
+  .mfoot{display:flex;gap:8px;margin-top:16px;align-items:center}
+  .hint{font-size:11px;color:var(--mut);margin-top:6px;line-height:1.5}
+  .foot{color:var(--mut);font-size:11px;text-align:center;padding:22px 12px}
+  a{color:var(--acc);text-underline-offset:3px}
+  code{background:var(--panel2);padding:1px 5px;border-radius:5px;font-size:12px}
+  /* 共通ナビ（戻る＋プロジェクト名） */
+  .topnav{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel);
+    border-bottom:1px solid var(--line)}
+  .topnav .back{display:inline-flex;align-items:center;gap:4px;text-decoration:none;
+    color:var(--mut);font-size:13px;padding:6px 10px;border-radius:6px;transition:.15s}
+  .topnav .back:hover{background:var(--bg);color:var(--ink)}
+  .topnav .pn{flex:1;text-align:center;font-family:var(--serif);font-size:13px;color:var(--mut)}
+  .topnav .ttl{font-family:var(--serif);font-size:13px;color:var(--ink);padding:6px 10px}
+  @media(pointer:coarse){.topnav .back{min-height:40px}}
+  /* ⋯ メニュー（シート） */
+  .menupop{position:fixed;inset:0;background:rgba(31,42,36,.42);display:none;
+    align-items:flex-end;justify-content:center;padding:16px;z-index:60}
+  .menupop.on{display:flex}
+  @media(min-width:560px){.menupop{align-items:center}}
+  .menupop .sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:8px;max-width:340px;width:100%;animation:popIn .18s ease}
+  @keyframes popIn{from{transform:translateY(16px);opacity:0}to{transform:none;opacity:1}}
+  .menupop .mi{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:none;border:none;padding:11px 14px;border-radius:8px;font-size:14px;
+    color:var(--ink);font-family:inherit;cursor:pointer;transition:.1s}
+  .menupop .mi:hover{background:var(--bg)}
+  .menupop .mi.danger{color:var(--accA)}
+  .menupop .div{height:1px;background:var(--line);margin:4px 8px}
+  /* coach 折りたたみ */
+  .coach details{margin:0}
+  .coach details summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;
+    font-family:var(--serif);font-size:14px;color:var(--ink);padding:0}
+  .coach details summary::-webkit-details-marker{display:none}
+  .coach details summary::before{content:'▸';color:var(--mut);font-size:11px;transition:transform .15s}
+  .coach details[open] summary::before{transform:rotate(90deg)}
+  .coach details[open] summary{margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+</style>
+</head>
+<body>
+<nav class="topnav">
+  <a class="back" href="./index.html" aria-label="工房に戻る">← 工房</a>
+  <div class="pn" id="topPn">—</div>
+  <span class="ttl">🗂️ アイデア</span>
+</nav>
+
+<main>
+  <!-- 入力（ミニマル） -->
+  <div class="toolbar">
+    <textarea id="input" placeholder="思いついたこと・事実・問い・タスクを1枚に。Enterで追加（Shift+Enterで改行）"></textarea>
+    <div class="row">
+      <button class="primary" id="addBtn">＋ 追加</button>
+      <span class="spacer"></span>
+      <button class="ghost sm" id="moreBtn" aria-label="その他のメニュー" title="その他">⋯</button>
+    </div>
+  </div>
+
+  <!-- ⋯ メニュー -->
+  <div class="menupop" id="menuPop" role="dialog" aria-modal="true">
+    <div class="sheet">
+      <button class="mi" id="bulkBtn">📋 行ごとに一括追加</button>
+      <button class="mi" id="sampleBtn">📥 リサーチ成果を取込</button>
+      <div class="div"></div>
+      <button class="mi" id="setBtn">⚙ AI分類の設定 <span class="aibadge" id="aiBadge" style="margin-left:auto">ローカル</span></button>
+      <div class="div"></div>
+      <button class="mi" id="expBtn">⬇ 書き出し</button>
+      <button class="mi" id="impBtn">⬆ 取込</button>
+      <div class="div"></div>
+      <button class="mi danger" id="clearBtn">🗑 全消去</button>
+    </div>
+  </div>
+
+  <!-- 伴走パネル -->
+  <div class="coach" id="coach"></div>
+
+  <!-- 分布 -->
+  <div class="dist" id="dist"></div>
+
+  <!-- ボード操作 -->
+  <div class="bc">
+    <span class="lbl">分類軸：</span>
+    <select id="groupBy">
+      <option value="type">種別で見る</option>
+      <option value="theme">テーマで見る</option>
+      <option value="target">対象（A/B）で見る</option>
+      <option value="stage">段階（発散→実行）で見る</option>
+    </select>
+    <input class="txt" id="search" placeholder="🔍 検索" style="flex:1;min-width:120px">
+    <span class="lbl" id="total"></span>
+  </div>
+
+  <!-- ボード -->
+  <div class="board" id="board"></div>
+</main>
+
+<!-- カード編集モーダル -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <h3>カードを編集 / 分類を手直し</h3>
+    <label>内容</label>
+    <textarea id="eText"></textarea>
+    <div class="selgrid">
+      <div><label>種別</label><select id="eType"></select></div>
+      <div><label>テーマ</label><select id="eTheme"></select></div>
+      <div><label>対象</label><select id="eTarget"></select></div>
+      <div><label>段階</label><select id="eStage"></select></div>
+    </div>
+    <div class="hint" id="eReason"></div>
+    <div class="mfoot">
+      <button class="primary" id="eSave">保存</button>
+      <button id="eReclass">🔄 AIで再分類</button>
+      <span class="spacer"></span>
+      <button id="eDel" style="color:var(--red);border-color:#5a2a2a">削除</button>
+      <button class="ghost" id="eCancel">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="overlay" id="setOverlay">
+  <div class="modal">
+    <h3>⚙ 設定 — AI分類エンジン</h3>
+    <label>分類モード</label>
+    <select id="sMode">
+      <option value="local">ローカル自動分類（オフライン・即時・無料）</option>
+      <option value="claude">Claude API（本物のAI・キーが必要）</option>
+    </select>
+    <div id="claudeFields" style="display:none">
+      <label>Anthropic APIキー（ブラウザ内のみ保存・外部送信は分類時のapi.anthropic.comのみ）</label>
+      <input class="txt" id="sKey" style="width:100%" placeholder="sk-ant-...">
+      <label>モデル</label>
+      <select id="sModel">
+        <option value="claude-haiku-4-5-20251001">claude-haiku-4-5（速い・安い／推奨）</option>
+        <option value="claude-sonnet-4-6">claude-sonnet-4-6（バランス）</option>
+        <option value="claude-opus-4-8">claude-opus-4-8（最高精度）</option>
+      </select>
+      <div class="hint">※ ブラウザから直接APIを呼ぶため <code>anthropic-dangerous-direct-browser-access</code> を使います。キーは端末のlocalStorageにのみ保存されます。共有PCでは使用後に「全消去」でクリアしてください。</div>
+    </div>
+    <div class="mfoot">
+      <button class="primary" id="sSave">保存</button>
+      <button class="ghost" id="sCancel">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileIn" accept="application/json" style="display:none">
+<div class="foot">単一HTML・自己完結 / データは端末のlocalStorageに保存 — アイデア・スタジオ</div>
+
+<script>
+/* ===== 分類タクソノミー ===== */
+const TYPES=[
+ {k:'idea',label:'💡 アイデア',c:'#3F6B4E'},
+ {k:'fact',label:'📊 事実',c:'#5A6B61'},
+ {k:'question',label:'❓ 問い',c:'#B5562C'},
+ {k:'insight',label:'✨ 気づき',c:'#3F6B4E'},
+ {k:'decision',label:'✅ 決定',c:'#B5562C'},
+ {k:'task',label:'🛠 タスク',c:'#1F2A24'},
+ {k:'risk',label:'⚠️ リスク',c:'#B5562C'},
+];
+const THEMES=['見える化・測定','積立・投資','継続・習慣化','パーソナライズ','コミュニティ',
+ '製品形態・UX','信頼・エビデンス','課金・販売','市場・データ','法規・品質','ターゲット・動機','その他'];
+const TARGETS=[{k:'A',label:'🅰 女性'},{k:'B',label:'🅱 男性'},{k:'共通',label:'🤝 共通'}];
+const STAGES=[{k:'発散',label:'🌱 発散'},{k:'収束',label:'🎯 収束'},{k:'検証',label:'🔬 検証'},{k:'実行',label:'🚀 実行'}];
+
+const TYPE_RULES=[
+ ['question',[/[?？]/],['なぜ','どうやって','べきか','だろうか','どうする','可能か','どこまで','いくらで']],
+ ['decision',[],['確定','決定','に決め','採用','却下','見送','方針','ゴー','GO']],
+ ['risk',[],['リスク','懸念','問題','危険','注意','薬機','景表','違反','難しい','ボトルネック','課題']],
+ ['task',[/^\s*[-\[]/],['発注','選定','制作','設計する','調べる','リサーチ','作成','試作','決める','連絡','手配','見積','検証する','洗い出','まとめる']],
+ ['fact',[/[0-9０-９]+\s*(%|％|円|億|万|件|人|倍|位|社)/],['市場','調査','データ','出典','統計','シェア','成長率','売上','によると','報告']],
+ ['insight',[],['発見','気づき','示唆','つまり','要は','本質','根は','だから','逆に']],
+];
+const THEME_KW={
+ '見える化・測定':['測定','検査','可視化','スコア','数値','見える','グラフ','ダッシュボード','体組成','血圧','骨密度','握力','記録','ログ','カルテ','診断結果'],
+ '積立・投資':['積立','貯筋','貯金','複利','満期','通帳','資産','将来','つみたて','節約','口座'],
+ '継続・習慣化':['習慣','継続','毎日','毎朝','ストリーク','ルーティン','飲み忘れ','リマインド','続け','カレンダー','定着'],
+ 'パーソナライズ':['個別','最適化','出し分け','専用','処方','パーソナ','あなた','タイプ判定','体質'],
+ 'コミュニティ':['コミュニティ','SNS','ランキング','仲間','シェア','家族','ペア','夫婦','卒業生','口コミ','アンバサダー'],
+ '製品形態・UX':['剤型','錠剤','粉末','ゼリー','グミ','ドリンク','スープ','おにぎり','バー','容器','パッケージ','味','スティック','カプセル','形態','ヨーグルト'],
+ '信頼・エビデンス':['エビデンス','論文','GMP','第三者','医師','監修','透明','根拠','臨床','安全','信頼'],
+ '課金・販売':['価格','課金','サブスク','定期','LTV','CPA','販売','法人','返金','メンバーシップ','割引','ポイント','単価','獲得','アップセル','チャネル'],
+ '市場・データ':['市場','規模','成長','シェア','競合','億円','トレンド','需要','カテゴリ'],
+ '法規・品質':['薬機','景表','機能性表示','届出','原料','原価','品質','表示','規制','関与成分','SR'],
+ 'ターゲット・動機':['年代','ターゲット','動機','ペルソナ','20代','30代','40代','50代','シニア','悩み','インサイト','なぜ買う','見た目','モテ','清潔感'],
+};
+const TARGET_KW={
+ 'A':['女性','エクオール','更年期','大豆','イソフラボン','骨','肌','閉経','ホルモン','コラーゲン','セラミド','美容','糖化'],
+ 'B':['男性','ブラックジンジャー','筋','筋トレ','プロテイン','脂肪','EAA','HMB','サルコペニア','ジム','体脂肪','クレアチン'],
+};
+const STAGE_KW={
+ '実行':['発注','制作','量産','ローンチ','実装','リリース','手配','着手'],
+ '検証':['検査','試作','テスト','モニター','実証','検証','PoC','評価','効果測定'],
+ '収束':['絞り','比較','選定','優先','決める','確定','決定','どれにする','採用','却下'],
+};
+
+/* ===== 分類エンジン（ローカル） ===== */
+function hits(text,arr){return arr.filter(k=>text.includes(k))}
+function classifyLocal(text){
+  const t=text;
+  // type
+  let best={k:'idea',sc:0,kw:[]};
+  for(const [k,res,kws] of TYPE_RULES){
+    let sc=0,kw=[];
+    res.forEach(r=>{if(r.test(t)){sc+=2;}});
+    const h=hits(t,kws); sc+=h.length; kw=h;
+    if(sc>best.sc) best={k,sc,kw};
+  }
+  const type=best.k;
+  // theme
+  let th='その他',thSc=0,thKw=[];
+  for(const name in THEME_KW){const h=hits(t,THEME_KW[name]);if(h.length>thSc){th=name;thSc=h.length;thKw=h;}}
+  // target
+  const ha=hits(t,TARGET_KW.A),hb=hits(t,TARGET_KW.B);
+  let target='共通';
+  if(ha.length&&!hb.length)target='A'; else if(hb.length&&!ha.length)target='B';
+  else if(ha.length&&hb.length)target='共通';
+  // stage
+  let stage=null,stKw=[];
+  for(const s in STAGE_KW){const h=hits(t,STAGE_KW[s]);if(h.length){stage=s;stKw=h;break;}}
+  if(!stage){ stage=(type==='task')?'実行':(type==='decision')?'収束':(type==='fact'||type==='insight')?'検証':'発散'; }
+  // confidence
+  const totalHits=best.sc+thSc+(ha.length+hb.length)+stKw.length;
+  const conf= totalHits>=5?'高':totalHits>=2?'中':'低';
+  const reason=[...new Set([...best.kw,...thKw,...stKw])].slice(0,4).join('・')||'手がかり少なめ（推定）';
+  return {type,theme:th,target,stage,conf,reason};
+}
+
+/* ===== 分類エンジン（Claude API） ===== */
+async function classifyClaude(text){
+  const key=settings.key, model=settings.model||'claude-haiku-4-5-20251001';
+  if(!key) throw new Error('no key');
+  const sys=`あなたは新規事業のアイデア整理を伴走するアシスタントです。入力された情報カード1枚を分類し、JSONのみを返します。`+
+   `\ntype は次から1つ: ${TYPES.map(x=>x.k).join(', ')}（idea=アイデア, fact=事実/データ, question=問い, insight=気づき/示唆, decision=決定, task=タスク, risk=リスク/懸念）`+
+   `\ntheme は次から1つ: ${THEMES.join(' / ')}`+
+   `\ntarget は A(女性/エクオール/更年期/肌), B(男性/ブラックジンジャー/筋/脂肪), 共通 のいずれか`+
+   `\nstage は 発散 / 収束 / 検証 / 実行 のいずれか`+
+   `\nreason は分類根拠を15字以内の日本語で。`+
+   `\n出力は {"type","theme","target","stage","reason"} のJSONのみ。`;
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model,max_tokens:200,system:sys,messages:[{role:'user',content:`カード: ${text}`}]})
+  });
+  if(!res.ok){throw new Error('API '+res.status)}
+  const data=await res.json();
+  let txt=(data.content||[]).map(b=>b.text||'').join('');
+  const m=txt.match(/\{[\s\S]*\}/); if(!m) throw new Error('parse');
+  const o=JSON.parse(m[0]);
+  if(!TYPES.find(x=>x.k===o.type)) o.type='idea';
+  if(!THEMES.includes(o.theme)) o.theme='その他';
+  if(!['A','B','共通'].includes(o.target)) o.target='共通';
+  if(!['発散','収束','検証','実行'].includes(o.stage)) o.stage='発散';
+  o.conf='AI'; o.reason=(o.reason||'AI分類').slice(0,20);
+  return o;
+}
+async function classify(text){
+  if(settings.mode==='claude'&&settings.key){
+    try{return await classifyClaude(text);}catch(e){
+      const r=classifyLocal(text); r.reason='⚠APIエラー→ローカル: '+r.reason; return r;
+    }
+  }
+  return classifyLocal(text);
+}
+
+/* ===== 状態（プロジェクト名前空間） ===== */
+let cards=[], settings={mode:'local',key:'',model:'claude-haiku-4-5-20251001'};
+const PCUR = localStorage.getItem('atelierSage.current.v1') || 'default';
+const LS_C='atelierSage.proj.'+PCUR+'.ideas';
+const LS_S='atelierSage.proj.'+PCUR+'.ideaSettings';
+// 既存(旧キー)を default プロジェクトへ一度だけ移行
+if(PCUR==='default'){
+  if(localStorage.getItem(LS_C)===null && localStorage.getItem('ideaStudio.cards.v1')!==null)
+    localStorage.setItem(LS_C, localStorage.getItem('ideaStudio.cards.v1'));
+  if(localStorage.getItem(LS_S)===null && localStorage.getItem('ideaStudio.settings.v1')!==null)
+    localStorage.setItem(LS_S, localStorage.getItem('ideaStudio.settings.v1'));
+}
+// プロジェクト名表示
+(function(){
+  try{
+    const ps=JSON.parse(localStorage.getItem('atelierSage.projects.v1'))||[];
+    const p=ps.find(x=>x.id===PCUR);
+    const el=document.getElementById('topPn');
+    if(el) el.textContent = p ? p.name : 'メイン';
+  }catch(e){}
+})();
+function load(){
+  try{const raw=JSON.parse(localStorage.getItem(LS_C))||[];cards=Array.isArray(raw)?raw.map(normalizeCard).filter(Boolean):[]}catch(e){cards=[]}
+  try{settings=Object.assign(settings,JSON.parse(localStorage.getItem(LS_S))||{})}catch(e){}
+}
+function save(){localStorage.setItem(LS_C,JSON.stringify(cards))}
+function saveSet(){localStorage.setItem(LS_S,JSON.stringify(settings))}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+
+/* ===== カード操作 ===== */
+async function addCard(text){
+  text=text.trim(); if(!text)return;
+  const cl=await classify(text);
+  cards.unshift({id:uid(),text,...cl,createdAt:Date.now()});
+  save(); render();
+}
+async function addBulk(block){
+  const lines=block.split('\n').map(s=>s.trim()).filter(Boolean);
+  for(const ln of lines){ await addCard(ln); }
+}
+
+/* ===== 伴走パネル ===== */
+function buildCoach(){
+  const el=document.getElementById('coach');
+  if(!cards.length){ el.innerHTML=''; return; }
+  const byType={}; TYPES.forEach(t=>byType[t.k]=0);
+  const byTheme={}; THEMES.forEach(t=>byTheme[t]=0);
+  const byTgt={A:0,B:0,'共通':0}, byStage={発散:0,収束:0,検証:0,実行:0};
+  cards.forEach(c=>{byType[c.type]++;byTheme[c.theme]++;byTgt[c.target]++;byStage[c.stage]++});
+  const obs=[];
+  // 発散 vs 収束/検証/実行
+  const diverge=byStage.発散, converge=byStage.収束+byStage.検証+byStage.実行;
+  if(diverge>0||converge>0){
+    if(diverge>converge*2&&diverge>=3)
+      obs.push(['⚖️',`いまは<b>発散フェーズ</b>（発散${diverge} / 収束以降${converge}）。アイデアは出ています。そろそろ<b>絞り込み・検証</b>に重心を移す頃合いです。`]);
+    else if(converge>diverge&&converge>=3)
+      obs.push(['⚖️',`<b>収束・実行</b>に寄っています（発散${diverge} / 収束以降${converge}）。煮詰まったら<b>発散</b>を1ラウンド入れて選択肢を広げると吉。`]);
+    else
+      obs.push(['⚖️',`発散${diverge} / 収束${byStage.収束} / 検証${byStage.検証} / 実行${byStage.実行} — バランス良好。`]);
+  }
+  // 未解決の問い
+  const qs=cards.filter(c=>c.type==='question');
+  if(qs.length) obs.push(['❓',`<b>未解決の問いが${qs.length}件</b>。例：「${esc(qs[0].text.slice(0,28))}${qs[0].text.length>28?'…':''}」 — 答えを別カードで返すと前に進みます。`]);
+  // リスク
+  const rs=cards.filter(c=>c.type==='risk');
+  if(rs.length) obs.push(['⚠️',`<b>リスク／課題が${rs.length}件</b>。早めに対処カード（タスク）に変換を。`]);
+  // 盲点テーマ（中核8分類で0件のもの）
+  const core=THEMES.slice(0,8);
+  const blanks=core.filter(t=>byTheme[t]===0);
+  if(blanks.length&&cards.length>=4)
+    obs.push(['🔭',`盲点かも：<b>${blanks.slice(0,3).join('・')}</b> のカードがまだ0件。この観点でも1枚書いてみると抜けが埋まります。`]);
+  // A/B 偏り
+  obs.push(['🎯',`対象バランス → 🅰女性 <b>${byTgt.A}</b> / 🅱男性 <b>${byTgt.B}</b> / 共通 <b>${byTgt['共通']}</b>。`+
+    (byTgt.A===0?' 女性側の検討が手薄。':byTgt.B===0?' 男性側の検討が手薄。':'')]);
+  // next action
+  let next='';
+  if(qs.length) next=`未解決の問い「${esc(qs[0].text.slice(0,24))}…」にカードで答える`;
+  else if(diverge>converge*2&&diverge>=3) next='出たアイデアを「収束（比較・選定）」して本命を2〜3枚に絞る';
+  else if(blanks.length) next=`盲点テーマ「${blanks[0]}」のカードを足す`;
+  else if(rs.length) next='リスクカードを対処タスクに変換する';
+  else next='手応えのあるカードを深掘り（処方・剤型・コピーまで具体化）する';
+
+  const nextPlain=esc(next.replace(/<[^>]+>/g,'')).slice(0,50);
+  el.innerHTML=`<details>
+    <summary>👉 ${nextPlain}</summary>
+    ${obs.slice(0,3).map(o=>`<div class="obs"><span class="ic">${o[0]}</span><div>${o[1]}</div></div>`).join('')}
+    <div class="nextline">👉 次の一手：<b>${next}</b></div>
+  </details>`;
+}
+
+/* ===== 分布 ===== */
+function buildDist(){
+  const el=document.getElementById('dist');
+  if(!cards.length){el.innerHTML='';return;}
+  const byType={}; TYPES.forEach(t=>byType[t.k]=0);
+  cards.forEach(c=>byType[c.type]++);
+  el.innerHTML=TYPES.filter(t=>byType[t.k]>0).map(t=>
+    `<div class="b" style="border-color:${t.c}44"><b style="color:${t.c}">${byType[t.k]}</b>${t.label.replace(/^.. /,'')}</div>`).join('');
+}
+
+/* ===== ボード ===== */
+function render(){
+  buildCoach(); buildDist();
+  // 空状態：最初の一手を1つだけ提示（Apple流：迷わせない）
+  const board0=document.getElementById('board');
+  if(!cards.length){
+    document.getElementById('total').textContent='';
+    board0.innerHTML=`<div class="firstrun">
+      <div class="fr-emoji">📝</div>
+      <div class="fr-title">最初のカードを書いてみましょう</div>
+      <div class="fr-sub">上の欄に思いついたことを1つ書いて <b>Enter</b>。<br>事実・アイデア・問い、なんでもOK。AIが自動で仕分けます。</div>
+      <button class="fr-btn" id="frImport">📥 リサーチ成果20枚を入れて試す</button>
+    </div>`;
+    const fi=document.getElementById('frImport');
+    if(fi) fi.onclick=()=>document.getElementById('sampleBtn').click();
+    return;
+  }
+  const gb=document.getElementById('groupBy').value;
+  const q=document.getElementById('search').value.trim();
+  let groups,keyOf,labelOf,colorOf=()=>'var(--acc)';
+  if(gb==='type'){groups=TYPES.map(x=>x.k);keyOf=c=>c.type;labelOf=k=>TYPES.find(x=>x.k===k).label;colorOf=k=>TYPES.find(x=>x.k===k).c;}
+  else if(gb==='theme'){groups=THEMES.slice();keyOf=c=>c.theme;labelOf=k=>k;}
+  else if(gb==='target'){groups=TARGETS.map(x=>x.k);keyOf=c=>c.target;labelOf=k=>TARGETS.find(x=>x.k===k).label;}
+  else{groups=STAGES.map(x=>x.k);keyOf=c=>c.stage;labelOf=k=>STAGES.find(x=>x.k===k).label;}
+  const vis=cards.filter(c=>!q||c.text.includes(q)||c.theme.includes(q)||(c.reason||'').includes(q));
+  document.getElementById('total').textContent=`${vis.length} / ${cards.length} 枚`;
+  const board=document.getElementById('board'); board.innerHTML='';
+  groups.forEach(g=>{
+    const items=vis.filter(c=>keyOf(c)===g);
+    if(!items.length && (gb==='theme')) return; // テーマは空列を省略
+    const col=document.createElement('div'); col.className='col';
+    const tcolor=(gb==='type')?colorOf(g):'var(--accB)';
+    col.innerHTML=`<h4 style="color:${tcolor}">${labelOf(g)}<span class="cnt">${items.length}</span></h4>`;
+    if(!items.length){col.innerHTML+=`<div class="empty">—</div>`;}
+    items.forEach(c=>{
+      const tc=TYPES.find(x=>x.k===c.type)||TYPES[0];
+      const card=document.createElement('div'); card.className='ic-card'; card.style.borderLeftColor=tc.c;
+      const tgt=TARGETS.find(x=>x.k===c.target)||TARGETS[2];
+      const stg=STAGES.find(x=>x.k===c.stage)||STAGES[0];
+      card.innerHTML=`<div class="txt">${esc(c.text)}</div><div class="tags">
+        ${gb!=='type'?`<span class="tg" style="color:${tc.c}">${tc.label}</span>`:''}
+        ${gb!=='theme'?`<span class="tg">📂${esc(c.theme||'')}</span>`:''}
+        ${gb!=='target'?`<span class="tg">${tgt.label}</span>`:''}
+        ${gb!=='stage'?`<span class="tg">${stg.label}</span>`:''}
+        <span class="tg conf" style="color:${c.conf==='AI'?'var(--accB)':c.conf==='高'?'var(--acc)':c.conf==='中'?'var(--warn)':'var(--mut)'}">${c.conf==='AI'?'🤖AI':'確度'+c.conf}</span>
+      </div>`;
+      card.onclick=()=>openEdit(c.id);
+      col.appendChild(card);
+    });
+    board.appendChild(col);
+  });
+  if(!vis.length){board.innerHTML=`<div class="col"><div class="empty">該当カードなし</div></div>`;}
+}
+function esc(s){return s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
+
+/* ===== 編集モーダル ===== */
+let editId=null;
+function fillSel(id,arr,getK,getL){const s=document.getElementById(id);s.innerHTML=arr.map(x=>`<option value="${getK(x)}">${getL(x)}</option>`).join('')}
+fillSel('eType',TYPES,x=>x.k,x=>x.label);
+fillSel('eTheme',THEMES,x=>x,x=>x);
+fillSel('eTarget',TARGETS,x=>x.k,x=>x.label);
+fillSel('eStage',STAGES,x=>x.k,x=>x.label);
+function openEdit(id){
+  const c=cards.find(x=>x.id===id); if(!c)return; editId=id;
+  eText.value=c.text; eType.value=c.type; eTheme.value=c.theme; eTarget.value=c.target; eStage.value=c.stage;
+  document.getElementById('eReason').textContent='🔖 分類根拠：'+(c.reason||'-');
+  document.getElementById('editOverlay').classList.add('show');
+}
+function closeEdit(){document.getElementById('editOverlay').classList.remove('show');editId=null}
+document.getElementById('eSave').onclick=()=>{
+  const c=cards.find(x=>x.id===editId); if(!c)return;
+  c.text=eText.value.trim()||c.text; c.type=eType.value; c.theme=eTheme.value; c.target=eTarget.value; c.stage=eStage.value;
+  if(c.conf!=='AI')c.conf='手動'; save(); render(); closeEdit();
+};
+document.getElementById('eReclass').onclick=async()=>{
+  const c=cards.find(x=>x.id===editId); if(!c)return;
+  const btn=document.getElementById('eReclass'); btn.textContent='分類中…'; btn.disabled=true;
+  const cl=await classify(eText.value.trim()||c.text);
+  eType.value=cl.type;eTheme.value=cl.theme;eTarget.value=cl.target;eStage.value=cl.stage;
+  document.getElementById('eReason').textContent='🔖 分類根拠：'+cl.reason;
+  btn.textContent='🔄 AIで再分類'; btn.disabled=false;
+};
+document.getElementById('eDel').onclick=()=>{cards=cards.filter(x=>x.id!==editId);save();render();closeEdit()};
+document.getElementById('eCancel').onclick=closeEdit;
+document.getElementById('editOverlay').onclick=e=>{if(e.target.id==='editOverlay')closeEdit()};
+
+/* ===== 設定モーダル ===== */
+function openSet(){
+  document.getElementById('sMode').value=settings.mode;
+  document.getElementById('sKey').value=settings.key||'';
+  document.getElementById('sModel').value=settings.model;
+  document.getElementById('claudeFields').style.display=settings.mode==='claude'?'block':'none';
+  document.getElementById('setOverlay').classList.add('show');
+}
+document.getElementById('sMode').onchange=e=>{document.getElementById('claudeFields').style.display=e.target.value==='claude'?'block':'none'};
+document.getElementById('sSave').onclick=()=>{
+  settings.mode=document.getElementById('sMode').value;
+  settings.key=document.getElementById('sKey').value.trim();
+  settings.model=document.getElementById('sModel').value;
+  saveSet(); updateAiBadge(); document.getElementById('setOverlay').classList.remove('show');
+};
+document.getElementById('sCancel').onclick=()=>document.getElementById('setOverlay').classList.remove('show');
+document.getElementById('setOverlay').onclick=e=>{if(e.target.id==='setOverlay')document.getElementById('setOverlay').classList.remove('show')};
+function updateAiBadge(){
+  const b=document.getElementById('aiBadge');
+  if(settings.mode==='claude'&&settings.key){b.textContent='AI分類：Claude '+settings.model.split('-')[1];b.classList.add('on');}
+  else{b.textContent='AI分類：ローカル';b.classList.remove('on');}
+}
+
+/* ===== 入出力 ===== */
+function exportData(){
+  const md=cards.map(c=>`- [${TYPES.find(t=>t.k===c.type).label}] (${c.theme}/${c.target}/${c.stage}) ${c.text}`).join('\n');
+  const blob=new Blob([JSON.stringify({cards,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='idea-cards.json';a.click();
+  navigator.clipboard&&navigator.clipboard.writeText(md).catch(()=>{});
+}
+document.getElementById('expBtn').onclick=exportData;
+document.getElementById('impBtn').onclick=()=>document.getElementById('fileIn').click();
+const VALID_TYPES=new Set(TYPES.map(t=>t.k));
+function normalizeCard(c){
+  if(!c||typeof c.text!=='string'||!c.text.trim())return null;
+  return {id:c.id||uid(), text:c.text,
+    type:VALID_TYPES.has(c.type)?c.type:'idea',
+    theme:THEMES.includes(c.theme)?c.theme:'その他',
+    target:['A','B','共通'].includes(c.target)?c.target:'共通',
+    stage:['発散','収束','検証','実行'].includes(c.stage)?c.stage:'発散',
+    conf:c.conf||'中', reason:c.reason||'', createdAt:c.createdAt||Date.now()};
+}
+document.getElementById('fileIn').onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader(); r.onload=()=>{try{const d=JSON.parse(r.result);
+    if(Array.isArray(d.cards)){const ok=d.cards.map(normalizeCard).filter(Boolean);
+      if(!ok.length){alert('有効なカードがありませんでした');return;}
+      cards=ok.concat(cards);save();render();}
+    else alert('カード配列が見つかりませんでした');}catch(err){alert('読み込めませんでした')}};
+  r.readAsText(f); e.target.value='';
+};
+
+/* ===== リサーチ成果（IDEA_BOOK Track-E 4巡分） / 全消去 ===== */
+const RESEARCH=[
+ {text:'BJ（ブラックジンジャー）の機能性表示は「脂肪」訴求が乱立、「筋力」クレームを載せた商品はまだ希少。エスビー2025年参入も脂肪+血糖のみ → 筋×脂肪の二刀流枠は空白',type:'fact',theme:'市場・データ',target:'B',stage:'検証',conf:'高',reason:'Track-E1 食品新聞'},
+ {text:'日本のクレアチン市場はCAGR16.75%（〜2035）で筋トレサプリ最速成長。プロテインは7.9%で成熟期へ',type:'fact',theme:'市場・データ',target:'B',stage:'検証',conf:'高',reason:'Track-E1 Spherical'},
+ {text:'フェムケア&フェムテック市場は2025年888.6億円（前年比110.5%）。更年期ケアが不妊・妊活を逆転し最大セグメントに',type:'fact',theme:'市場・データ',target:'A',stage:'検証',conf:'高',reason:'Track-E1 矢野経済'},
+ {text:'1商品に複数の機能性関与成分を届出することは制度上可能（前例：アントシアニン+ルテイン等）',type:'fact',theme:'法規・品質',target:'共通',stage:'検証',conf:'高',reason:'Track-E2 消費者庁'},
+ {text:'クレアチンは機能性表示の届出実績あり：3g/日「運動併用で中高年の筋量・筋力の維持」。DyDo・アサヒGF参入済み',type:'fact',theme:'法規・品質',target:'B',stage:'検証',conf:'高',reason:'Track-E2 健康産業新聞'},
+ {text:'エクオール×GABAはBELTA（届出I771）・命の母エクオールが先行済み＝密集。後発になる',type:'fact',theme:'市場・データ',target:'A',stage:'検証',conf:'高',reason:'Track-E2 BELTA/小林'},
+ {text:'骨クレームは大豆イソフラボン25mg/日で届出実績潤沢（FANCL健骨サポート・DyDo骨コツプロ・協和薬品A259）',type:'fact',theme:'法規・品質',target:'A',stage:'検証',conf:'高',reason:'Track-E2 FANCL他'},
+ {text:'エクオール原料は実質ダイセル1社供給（大塚は外販せず）＋製法特許係争の経緯あり。調達リスク高',type:'risk',theme:'法規・品質',target:'A',stage:'収束',conf:'高',reason:'Track-E4 ウェルネスDN'},
+ {text:'BJ原料は丸善製薬が機能性表示対応素材として供給：PMF12mg/日=抽出物150mg/日。ゼリー配合向けクリアBJもあり',type:'fact',theme:'法規・品質',target:'B',stage:'検証',conf:'高',reason:'Track-E3 丸善製薬'},
+ {text:'クレアチンは小売でも1kg¥3,000-4,000 → 月90g分の原料費は数百円。原価率30%の脅威にならない',type:'fact',theme:'課金・販売',target:'B',stage:'検証',conf:'中',reason:'Track-E3 グロング等'},
+ {text:'サプリOEMは最小500個・初回50〜100万円が相場。粉末・錠剤は安く、ゼリー・カプセルは設備要件で高い',type:'fact',theme:'課金・販売',target:'共通',stage:'検証',conf:'中',reason:'Track-E3 シンギー他'},
+ {text:'D2C定期の月次解約率は3-5%以下が標準・3%以下が理想。3ヶ月まとめコースでLTV約1.5倍の事例',type:'fact',theme:'課金・販売',target:'共通',stage:'検証',conf:'中',reason:'Track-E4 EC-tsumugu'},
+ {text:'クレアチンはISSN（国際スポーツ栄養学会）が短期・長期とも安全と結論。BJとの相互作用報告なし（NSAIDs常用・利尿薬は注意表示を）',type:'fact',theme:'信頼・エビデンス',target:'B',stage:'検証',conf:'高',reason:'Track-E4 ISSN'},
+ {text:'筋トレ継続動機の査読研究：体力向上4.02・体型維持3.98・健康3.90が上位。「モテたい（外観）」は主動機でない（日本健康教育学会誌2019）',type:'fact',theme:'ターゲット・動機',target:'B',stage:'検証',conf:'高',reason:'動機research 3-0確認'},
+ {text:'「活力・精力」枠は密集市場 → 「維持・コンディショニング」の言葉設計で差別化（動機研究と整合）',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'中',reason:'Track-E1+動機research'},
+ {text:'第1弾候補：🅱 BJ×クレアチンの「筋トレ日」粉末スティック。脂肪×筋力の二刀流で空白の筋力枠を先取り（4巡リサーチで赤信号ゼロ）',type:'idea',theme:'製品形態・UX',target:'B',stage:'収束',conf:'高',reason:'Track-E4 総括'},
+ {text:'🅰は大豆イソフラボン×骨（Ca/VD）を主軸に、エクオール&産生能検査は上位アドオンに格下げ（単一供給・特許リスク回避）',type:'idea',theme:'製品形態・UX',target:'A',stage:'収束',conf:'中',reason:'Track-E4 総括'},
+ {text:'剤型は2段ロケット：第1弾=粉末スティック → 実績が出たら第2弾=ゼリー（グミサプリCAGR10.8%、非習慣層への橋）',type:'idea',theme:'製品形態・UX',target:'共通',stage:'収束',conf:'中',reason:'Track-E3 剤型トレンド'},
+ {text:'Lite¥3,480でクレアチン3g/日×30日分（計90g）を収める包装は？スティック30本か、袋+計量スプーンか',type:'question',theme:'製品形態・UX',target:'B',stage:'収束',conf:'中',reason:'Track-E3 未解決'},
+ {text:'丸善製薬（BJ）・クレアチン原料・検査キットの正式見積もりを依頼する（机上調査はここが限界）',type:'task',theme:'課金・販売',target:'共通',stage:'実行',conf:'高',reason:'Track-E4 次アクション'},
+ // ── Track-F 成分の科学 ──
+ {text:'筋肉づくりはタンパク質単体では不足。ロイシンがmTOR（合成スイッチ）を刺激し、ビタミンD・B6・亜鉛が"効かせる工具"。最小セット=タンパク質(ロイシン源)+VD+B6+亜鉛',type:'fact',theme:'信頼・エビデンス',target:'B',stage:'検証',conf:'高',reason:'F 明治/森永/大正'},
+ {text:'タンパク質の吸収を助けるのはビタミンC（コラーゲン合成）とB6（アミノ酸代謝）。1回20-30g上限、分割摂取が効率的',type:'fact',theme:'信頼・エビデンス',target:'共通',stage:'検証',conf:'中',reason:'F 各記事'},
+ {text:'美容の入口成分は「ビタミンC」。①コラーゲン生成②メラニン抑制③抗酸化の一石三鳥。水溶性で貯まらずこまめ摂取が要。まず1つならVC',type:'fact',theme:'信頼・エビデンス',target:'A',stage:'検証',conf:'高',reason:'F アベンヌ/あおい皮フ科'},
+ {text:'アンチエイジングの本質は「酸化×糖化×炎症」の3経路を同時に遅らせること。抗酸化(VC/E,レスベラトロール)+抗糖化+NAD補充(NMN)。単一成分でなく多経路カバー',type:'insight',theme:'信頼・エビデンス',target:'共通',stage:'検証',conf:'中',reason:'F きだ内科/日清'},
+ {text:'飲む日焼け止めの主成分はニュートロックスサン(シトラス+ローズマリー)とPLエキス(シダ)。原理は塗る型と別で、紫外線で出る活性酸素を抗酸化で除去。UVは物理ブロックしない=塗る型の補完',type:'fact',theme:'信頼・エビデンス',target:'A',stage:'検証',conf:'高',reason:'F ジェネリオ/肌ルネ'},
+ {text:'飲む日焼け止め臨床例：Nestor 2015、PL240mg×2/日60日でMED増加・UV紅斑低下をプラセボ対比で確認。ただし単独では不十分、塗る＋飲む併用が前提',type:'fact',theme:'信頼・エビデンス',target:'A',stage:'検証',conf:'中',reason:'F Nestor2015'},
+ // ── Track-G 本質インサイト（3視点） ──
+ {text:'【①論文】筋トレ継続動機の因子分析(日本健康教育学会誌2019)：継続者は「楽しさ・高揚感」「依存・自尊」が顕著。体力向上4.02/体型維持3.98が上位、モテは主動機でない',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'高',reason:'G 論文視点'},
+ {text:'【②リサーチドリブン】筋トレ男性が払うのは筋肉でなく「衰えへの不安の先送り」。ジムは自己コントロール感の回復装置。活力市場は密集、維持×自尊の言葉が空いている',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'中',reason:'G リサーチ視点'},
+ {text:'【③5WHY】なぜ筋トレ→体を変えたい→自信→加齢で揺らぐ→評価が外見と結びつく→唯一自分で変えられるのが身体→真因：自己効力感(コントロールできる感覚)の回復',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'中',reason:'G 5WHY視点'},
+ {text:'【①調査】男性美容：Z世代関心71.9%だが実践34%・メイク7%。関心と実践に大きなギャップ。習慣化に落ちていない',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'高',reason:'G 論文視点'},
+ {text:'【②リサーチドリブン】男性美容の動機は加点(モテ)でなく減点回避(清潔感)。恥ずかしさの摩擦で実践が止まる→言い換え(美容→自己投資)と剤型で摩擦を外せる',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'中',reason:'G リサーチ視点'},
+ {text:'【③5WHY】なぜ美容→清潔感→不潔と思われたくない→対人で減点→第一印象が評価に直結→やり直せない→真因：やり直しの効かない他者評価への防御的投資',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'中',reason:'G 5WHY視点'},
+ {text:'【統合】筋トレも美容も男性の本質は「モテ」でなく「コントロール／減点回避＝自己管理の証明」で一致。北極星"若さを保つ"と重なる。訴求は攻めより"自分で管理できる部分を積み上げる"',type:'insight',theme:'ターゲット・動機',target:'B',stage:'収束',conf:'高',reason:'G 統合'},
+ // ── Track-H EAA/ロイシン×アンチエイジング（ステップ1データ収集） ──
+ {text:'【核心パラドックス】ロイシンは筋肉のアクセル(mTOR活性化)だが、mTORの慢性活性化は老化を早める。同じ経路が筋肉には善・長寿には悪。ここを解けば商品の核になる',type:'insight',theme:'信頼・エビデンス',target:'共通',stage:'発散',conf:'高',reason:'H 核心'},
+ {text:'【①論文】ロイシンはmTORC1を活性化し筋合成を促進、運動併用で増強。HMBはロイシンと独立経路でmTORC1を活性化。HMB+アルギニン+リシンで高齢者の筋力・身体機能が有意向上(RCT)',type:'fact',theme:'信頼・エビデンス',target:'B',stage:'検証',conf:'高',reason:'H SNDJ/3c'},
+ {text:'【①論文】逆にBCAA/タンパク質の摂取制限はmTORを調節し寿命を延ばしうる(ショウジョウバエ・マウス, Natureダイジェスト)。ヒト高齢者への食餌制限推奨は時期尚早',type:'fact',theme:'信頼・エビデンス',target:'共通',stage:'検証',conf:'中',reason:'H Nature'},
+ {text:'【①論文】解消の鍵=タイミング/サイクリング。筋トレ日はmTOR優先(EAA)、休息日は断食/カロリー制限でmTOR抑制・AMPK/オートファジー活性化を交互に。BFRなら中高年でも高負荷並みにmTORC1活性化',type:'fact',theme:'信頼・エビデンス',target:'共通',stage:'検証',conf:'中',reason:'H 大紀元/BFR協会'},
+ {text:'【①論文】肌側：コラーゲンペプチド経口でGly-Pro-Hyp等が血中・皮膚に到達し肌水分・弾力が改善(分解されずペプチドで届く)。グリシンはグルタチオン材料で抗酸化にも(FANCL/ナールス)',type:'fact',theme:'信頼・エビデンス',target:'A',stage:'検証',conf:'高',reason:'H FANCL'},
+ {text:'【②リサーチドリブン】既存EAA/HMB市場は「筋肉を増やす」一色。長寿・抗老化と結ぶ商品はほぼ無い=賢いアクセルの踏み方を売る枠が空白。抗老化層はmTOR抑えたい・筋トレ層は上げたいで真逆だが、本当は両方欲しい',type:'insight',theme:'市場・データ',target:'共通',stage:'発散',conf:'中',reason:'H リサーチ視点'},
+ {text:'【③5WHY】なぜEAA→筋肉維持→衰えたくない→老けたと判定されるのが怖い→老化は不可抗力で抗う手段が少ない→自分でコントロールできる介入に価値集中→真因：人は"老化に能動的に手を打てている感覚"に金を払う',type:'insight',theme:'ターゲット・動機',target:'共通',stage:'発散',conf:'中',reason:'H 5WHY視点'},
+ {text:'【H統合】EAA×抗老化の勝ち筋は「増やす」でなく「賢く使い分ける(サイクリング)」。筋のアクセル(ロイシン/HMB)と細胞のブレーキ(抗酸化/オートファジー/断食支援)を曜日やオン/オフで最適化=空白地帯',type:'insight',theme:'製品形態・UX',target:'共通',stage:'発散',conf:'高',reason:'H 統合'},
+ {text:'【種H-e1】オン/オフ2剤：トレ日パウチ(ロイシン/HMB=アクセル)＋休息日パウチ(グリシン/抗酸化=ブレーキ)。曜日で飲み分ける"若さのギア"サプリ',type:'idea',theme:'製品形態・UX',target:'共通',stage:'発散',conf:'中',reason:'H 種'},
+ {text:'【種H-e4】筋×肌の同時ケア：ロイシン系(中身の若さ)＋コラーゲンペプチドGly-Pro-Hyp(見た目の若さ)を1本に。北極星"見た目＋中身"を成分レベルで体現',type:'idea',theme:'製品形態・UX',target:'共通',stage:'発散',conf:'中',reason:'H 種'},
+ {text:'【種H-e5】"二重のコントロール感"の見える化：筋量(体組成)と肌/抗酸化マーカーの両方をレポート。D1見える化と直結',type:'idea',theme:'見える化・測定',target:'共通',stage:'発散',conf:'中',reason:'H 種'},
+ // ── Track-I 他業界の儲けの仕組み転用（アナロジー） ──
+ {text:'【①Duolingo】月間7400万人の約70%が1週間以上ストリーク維持。継続=資産・フリーズ=保険で損失回避バイアスを突く。フリーズ緩和だけで日次+0.38%。摩擦1つの微調整でリテンションが動く',type:'fact',theme:'継続・習慣化',target:'共通',stage:'検証',conf:'高',reason:'I Duolingo'},
+ {text:'【②ボトルキープ】名入れボトルを店に預ける=置き資産＋"次も一緒に"の再来店予約を同時に作る。親密+会員ロックイン。スイッチングコストをモノ+関係性+特別感で積む',type:'fact',theme:'課金・販売',target:'共通',stage:'検証',conf:'中',reason:'I ロックイン'},
+ {text:'【③オイシックス】ハイタッチ対応は"支援"でなくパーソナルトレーナー的な伴走。入口で3日献立を提案し「頼むと楽になる」体験を最初に刻む=サボり(外注)を全肯定して信頼に変える',type:'fact',theme:'コミュニティ',target:'共通',stage:'検証',conf:'中',reason:'I オイシックス'},
+ {text:'【④Calm】毎日違うDaily Calmで儀式化、カレンダー履歴で可視化、自己肯定をコンテンツ化。年6500円〜終身42900円まで用意し"生き方への投資"として情緒課金。効果実感2ヶ月を続ける物語に変換',type:'fact',theme:'課金・販売',target:'共通',stage:'検証',conf:'中',reason:'I Calm'},
+ {text:'【⑤マクド×フォード/松下×資生堂】ハンバーガーを料理でなく標準化製造に再定義=努力の外注を仕組みで正当化。新パラダイムは対面教育網(資生堂)の模倣で普及させる',type:'fact',theme:'市場・データ',target:'共通',stage:'検証',conf:'中',reason:'I 標準化/教育'},
+ {text:'【I統合】この商品は"サプリ"でなく「3秒で完了する若さの積立デイリーミッション＋指名制の伴走」として設計すると、継続率・サボり正当化・寄り添いの3課題が同時に解ける',type:'insight',theme:'製品形態・UX',target:'共通',stage:'発散',conf:'高',reason:'I 統合'},
+ {text:'【種I-e1】名入れ「マイ・キープ缶」＋月次リフィル配送。手元の置き資産で解約ハードルを情緒的に上げる(ボトルキープ転用)',type:'idea',theme:'製品形態・UX',target:'共通',stage:'発散',conf:'中',reason:'I 種'},
+ {text:'【種I-e2】飲用ストリーク＆アバター成長アプリ。1タップで連続記録、自分の細マッチョ美肌数値が育つ。月2回フリーズで責めず戻す(Duolingo転用)',type:'idea',theme:'継続・習慣化',target:'共通',stage:'発散',conf:'中',reason:'I 種'},
+ {text:'【種I-e3】免罪符メッセージング：「食事制限しなくて大丈夫。あなたの"まあいっか"を栄養で埋めます」を軸コピーに(オイシックス転用)',type:'idea',theme:'ターゲット・動機',target:'共通',stage:'発散',conf:'中',reason:'I 種'},
+ {text:'【種I-e4】"若さの積立"終身/年間プラン。Calm式の情緒的長期コミット。貯筋/貯肌通帳の可視化と一体',type:'idea',theme:'課金・販売',target:'共通',stage:'発散',conf:'中',reason:'I 種'},
+ {text:'【種I-e5】指名制"肌×筋トレ・アドバイザー"のLINE伴走。新概念「美肌×筋肉」を対面教育の転用で納得させる(松下×資生堂転用)',type:'idea',theme:'コミュニティ',target:'共通',stage:'発散',conf:'中',reason:'I 種'},
+ // ── Track-J 収束（第1弾プロダクト確定） ──
+ {text:'【壁①】ニキビは皮膚疾患なので機能性表示食品では予防・改善を謳えない(消費者庁)。→亜鉛・B6の栄養機能表示「皮膚や粘膜の健康維持を助ける」に着地させる',type:'risk',theme:'法規・品質',target:'共通',stage:'収束',conf:'高',reason:'J 法規の壁'},
+ {text:'【壁②】1000mg超でカプセル3-4粒必要。ロイシン2.5g/HMB3g/クレアチン3g/コラーゲン5gは極小タブレットに物理的に入らない',type:'risk',theme:'製品形態・UX',target:'共通',stage:'収束',conf:'高',reason:'J 処方の壁'},
+ {text:'【壁②の解】「材料を供給する」→「食べた材料を効かせる」に反転。VD(mTOR活性化)・B6(アミノ酸代謝)・亜鉛はmg単位で小粒に入る。制約と価値提案が一致した',type:'insight',theme:'製品形態・UX',target:'共通',stage:'収束',conf:'高',reason:'J 突破口'},
+ {text:'【壁③の解】アミノ酸を供給しない設計なのでmTORを踏み続けない。食事が入った時だけ効率を上げる=間欠的。これが抗老化上の優位性になる',type:'insight',theme:'信頼・エビデンス',target:'共通',stage:'収束',conf:'中',reason:'J 抗老化整合'},
+ {text:'【確定】SWITCH「食べたものを、効かせる。」1日2粒(有効成分620mg)。関与成分=BJ由来PMF12mg＋ニュートロックスサン250mg。栄養機能=亜鉛/B6/VD/リポソームVC',type:'decision',theme:'製品形態・UX',target:'共通',stage:'収束',conf:'高',reason:'J 商品確定'},
+ {text:'【コンセプト】「タンパク質を足さずに、食べたものを効かせる。だから肌も荒れず、老化も加速させない。」プロテイン企業は量を売るので追随できない引き算の設計',type:'decision',theme:'ターゲット・動機',target:'共通',stage:'収束',conf:'高',reason:'J コンセプト'},
+ {text:'【価格】月¥4,980／初回¥2,480＋名入れキープ缶／3ヶ月¥13,440。目標解約率3%以下・原価率30%以下',type:'decision',theme:'課金・販売',target:'共通',stage:'収束',conf:'中',reason:'J 価格'},
+ {text:'ニュートロックスサンの原料単価を最優先で見積もり依頼する。原価率30%の成否はほぼここで決まる唯一の未知数',type:'task',theme:'課金・販売',target:'共通',stage:'実行',conf:'高',reason:'J P0最優先'},
+ {text:'丸善製薬(BJ抽出物150mg/日)・OEM3社(小粒2粒+リポソームVC可否)へ見積もり依頼する',type:'task',theme:'課金・販売',target:'共通',stage:'実行',conf:'高',reason:'J P0'},
+ {text:'機能性表示食品DBでニュートロックスサンの既存届出の表現を実地照合し、言える文言を確定する',type:'task',theme:'法規・品質',target:'共通',stage:'実行',conf:'高',reason:'J P0'},
+ {text:'禁止ワード表を確定し社内・制作会社へ配布（✕ニキビが治る/筋肉が増える/日焼けしない/痩せる ○皮膚の健康維持/脚の筋肉を維持/脂肪を消費しやすく）',type:'task',theme:'法規・品質',target:'共通',stage:'実行',conf:'高',reason:'J P0'},
+];
+document.getElementById('sampleBtn').onclick=()=>{
+  const exist=new Set(cards.map(c=>c.text));
+  let n=0;
+  for(const r of RESEARCH){
+    if(exist.has(r.text))continue;
+    const c=normalizeCard(Object.assign({},r));
+    if(c){cards.push(c);n++;}
+  }
+  save();render();
+  alert(n?('リサーチカードを'+n+'枚取り込みました'):'すでに全て取り込み済みです');
+};
+document.getElementById('clearBtn').onclick=()=>{if(confirm('すべてのカードを消去しますか？（取り消せません）')){cards=[];save();render()}};
+
+/* ===== イベント ===== */
+document.getElementById('addBtn').onclick=async()=>{const v=input.value;input.value='';await addCard(v)};
+document.getElementById('bulkBtn').onclick=async()=>{const v=input.value;input.value='';await addBulk(v)};
+document.getElementById('input').addEventListener('keydown',async e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const v=input.value;input.value='';await addCard(v)}
+});
+document.getElementById('groupBy').onchange=render;
+document.getElementById('search').oninput=render;
+document.getElementById('setBtn').onclick=openSet;
+
+/* ===== ⋯メニュー ===== */
+(function(){
+  const pop=document.getElementById('menuPop');
+  document.getElementById('moreBtn').onclick=()=>pop.classList.add('on');
+  pop.addEventListener('click',e=>{
+    if(e.target.id==='menuPop'){pop.classList.remove('on');return;}
+    if(e.target.closest('.mi'))pop.classList.remove('on');
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape')pop.classList.remove('on');
+  });
+})();
+
+/* ===== 起動 ===== */
+load(); updateAiBadge(); render();
+</script>
+</body>
+</html>

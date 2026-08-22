@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atelier Sage</title>
+<style>
+  :root{
+    --bg:#F4EFE6; --surface:#FBF7EF; --ink:#1F2A24; --text:#2E3A33;
+    --mut:#5A6B61; --line:#D9D2C4; --accent:#3F6B4E; --accent2:#B5562C;
+    --serif:Georgia,'游明朝','Yu Mincho',serif;
+    --sans:system-ui,-apple-system,'Hiragino Sans','Hiragino Kaku Gothic ProN','Yu Gothic UI','Noto Sans JP',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+  body{background:var(--bg);color:var(--text);font:400 16px/1.65 var(--sans);
+       min-height:100vh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+  main{flex:1;max-width:520px;width:100%;margin:0 auto;padding:56px 24px 24px;
+       display:flex;flex-direction:column;gap:36px}
+  .pbar{display:flex;align-items:center;gap:8px}
+  .pbar .name{flex:1;text-align:left;font-family:var(--serif);font-size:15px;color:var(--ink);
+              background:none;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;transition:.15s}
+  .pbar .name:hover{background:var(--surface)}
+  .pbar .name::after{content:' ▾';color:var(--mut);font-size:11px}
+  .pbar .add{padding:8px 12px;background:none;border:1px dashed var(--line);
+             border-radius:8px;color:var(--mut);cursor:pointer;font-size:12px;font-family:inherit;transition:.15s}
+  .pbar .add:hover{border-color:var(--accent);color:var(--accent);border-style:solid}
+  h1{font-family:var(--serif);font-weight:400;font-size:22px;color:var(--ink);
+     text-align:center;letter-spacing:.02em}
+  .cta{display:block;text-align:center;text-decoration:none;
+       background:var(--accent);color:#fff;font-size:17px;font-weight:600;
+       padding:34px 24px;border-radius:14px;font-family:inherit;
+       box-shadow:0 4px 16px rgba(63,107,78,.18);transition:transform .15s,box-shadow .15s}
+  .cta:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(63,107,78,.24)}
+  .cta:active{transform:translateY(0)}
+  .cta .em{display:block;font-family:var(--serif);font-size:13px;font-weight:400;
+           opacity:.82;margin-top:6px;letter-spacing:.02em}
+  .subs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .sub{display:flex;flex-direction:column;align-items:center;text-align:center;
+       text-decoration:none;color:var(--mut);background:var(--surface);
+       border:1px solid var(--line);border-radius:10px;padding:18px 12px;transition:.15s}
+  .sub:hover{border-color:var(--accent);color:var(--ink)}
+  .sub .ic{font-size:22px;margin-bottom:6px;line-height:1}
+  .sub .lb{font-family:var(--serif);font-size:13px;color:var(--ink)}
+  .ov{position:fixed;inset:0;background:rgba(31,42,36,.42);display:none;
+      align-items:flex-end;justify-content:center;padding:16px;z-index:50}
+  .ov.on{display:flex}
+  @media(min-width:560px){.ov{align-items:center}}
+  .modal{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+         padding:20px;max-width:380px;width:100%;animation:slideUp .2s ease}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
+  .modal h2{font-family:var(--serif);font-weight:400;font-size:17px;color:var(--ink);margin-bottom:14px}
+  .modal .row{display:flex;align-items:center;gap:8px;padding:10px 12px;
+              border-radius:8px;cursor:pointer;transition:.1s;margin-bottom:2px}
+  .modal .row:hover{background:var(--bg)}
+  .modal .row.cur{background:var(--bg);border-left:3px solid var(--accent);padding-left:9px}
+  .modal .row .n{flex:1;color:var(--ink);font-size:14px;text-align:left}
+  .modal .row .del{padding:4px 8px;color:var(--mut);background:none;border:none;
+                   cursor:pointer;font-size:12px;font-family:inherit;border-radius:4px}
+  .modal .row .del:hover{color:var(--accent2);background:rgba(181,86,44,.08)}
+  .modal input{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--line);
+               border-radius:8px;font-size:14px;font-family:inherit;color:var(--ink);margin-top:8px}
+  .modal .mrow{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+  .modal button.btn{padding:9px 16px;border-radius:8px;background:var(--accent);
+                    color:#fff;border:none;cursor:pointer;font-size:14px;
+                    font-family:inherit;font-weight:600}
+  .modal button.gh{background:none;color:var(--mut);border:1px solid var(--line)}
+  footer{text-align:center;color:var(--mut);font-size:11px;padding:18px 0;font-family:var(--serif)}
+  @media(pointer:coarse){.pbar .name,.pbar .add,.modal button.btn,.modal .row{min-height:44px}}
+</style>
+</head>
+<body>
+<main>
+  <div class="pbar">
+    <button class="name" id="projName" aria-label="プロジェクトを切り替え">—</button>
+    <button class="add" id="newProj" aria-label="新規プロジェクト">＋</button>
+  </div>
+
+  <h1>Atelier Sage</h1>
+
+  <a class="cta" href="./idea_studio.html">
+    📝 今日のアイデアを書く
+    <span class="em">1枚のカードから始める</span>
+  </a>
+
+  <div class="subs">
+    <a class="sub" href="./card_index.html"><span class="ic">🗃️</span><span class="lb">索引で広げる</span></a>
+    <a class="sub" href="./dashboard.html"><span class="ic">🧬</span><span class="lb">全体を俯瞰</span></a>
+  </div>
+</main>
+
+<div class="ov" id="projOv" role="dialog" aria-modal="true">
+  <div class="modal">
+    <h2>プロジェクト</h2>
+    <div id="projList"></div>
+    <input id="newName" placeholder="新しいプロジェクト名" maxlength="40">
+    <div class="mrow">
+      <button class="btn gh" id="ovClose">閉じる</button>
+      <button class="btn" id="newOk">追加</button>
+    </div>
+  </div>
+</div>
+
+<footer>Atelier Sage</footer>
+
+<script>
+(function(){
+  const KP='atelierSage.projects.v1', KC='atelierSage.current.v1';
+  let projects=[], current='';
+  function uid(){return 'p'+Math.random().toString(36).slice(2,8);}
+  function safeJSON(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}}
+
+  function load(){
+    projects=safeJSON(KP)||[];
+    current=localStorage.getItem(KC)||'';
+    if(!projects.length){
+      const def={id:'default',name:'メイン',createdAt:0};
+      projects=[def]; current=def.id;
+      localStorage.setItem(KP,JSON.stringify(projects));
+      localStorage.setItem(KC,current);
+    }
+    if(!projects.find(p=>p.id===current)){
+      current=projects[0].id;
+      localStorage.setItem(KC,current);
+    }
+  }
+  function save(){
+    localStorage.setItem(KP,JSON.stringify(projects));
+    localStorage.setItem(KC,current);
+  }
+  function curName(){const p=projects.find(p=>p.id===current);return p?p.name:'メイン';}
+  function renderName(){document.getElementById('projName').textContent=curName();}
+  function renderList(){
+    const root=document.getElementById('projList'); root.innerHTML='';
+    projects.forEach(p=>{
+      const row=document.createElement('div');
+      row.className='row'+(p.id===current?' cur':'');
+      const n=document.createElement('span'); n.className='n'; n.textContent=p.name;
+      n.onclick=()=>{current=p.id;save();renderName();closeOv();};
+      row.appendChild(n);
+      if(projects.length>1){
+        const d=document.createElement('button'); d.className='del'; d.textContent='削除';
+        d.onclick=(e)=>{
+          e.stopPropagation();
+          if(!confirm('プロジェクト「'+p.name+'」を削除します（中のカード・設定も消えます）'))return;
+          ['ideas','cards','settings'].forEach(k=>localStorage.removeItem('atelierSage.proj.'+p.id+'.'+k));
+          projects=projects.filter(x=>x.id!==p.id);
+          if(current===p.id)current=projects[0].id;
+          save(); renderName(); renderList();
+        };
+        row.appendChild(d);
+      }
+      root.appendChild(row);
+    });
+  }
+  function openOv(){
+    renderList();
+    document.getElementById('projOv').classList.add('on');
+    document.getElementById('newName').value='';
+    setTimeout(()=>document.getElementById('newName').focus(),50);
+  }
+  function closeOv(){document.getElementById('projOv').classList.remove('on');}
+
+  document.getElementById('projName').onclick=openOv;
+  document.getElementById('newProj').onclick=openOv;
+  document.getElementById('ovClose').onclick=closeOv;
+  document.getElementById('projOv').addEventListener('click',(e)=>{
+    if(e.target.id==='projOv')closeOv();
+  });
+  document.addEventListener('keydown',(e)=>{
+    if(e.key==='Escape')closeOv();
+  });
+  document.getElementById('newOk').onclick=()=>{
+    const n=document.getElementById('newName').value.trim();
+    if(!n)return;
+    const p={id:uid(),name:n.slice(0,40),createdAt:0};
+    projects.push(p); current=p.id; save(); renderName(); closeOv();
+  };
+  document.getElementById('newName').addEventListener('keydown',(e)=>{
+    if(e.key==='Enter'){e.preventDefault();document.getElementById('newOk').click();}
+  });
+
+  load(); renderName();
+})();
+</script>
+</body>
+</html>
